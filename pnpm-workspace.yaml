@@ -1,0 +1,5 @@
+packages:
+  - "gateway"
+  - "sdk"
+  - "web"
+  - "mobile"

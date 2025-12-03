@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Codex Remote Runner",
+    "slug": "codex-remote-runner",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android", "web"],
+    "assetBundlePatterns": ["**/*"],
+    "jsEngine": "hermes"
+  }
+}

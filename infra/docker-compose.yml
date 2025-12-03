@@ -1,0 +1,55 @@
+version: '3.9'
+
+services:
+  gateway:
+    build:
+      context: ../gateway
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://codex:codex@postgres:5432/codex
+      REDIS_URL: redis://redis:6379
+      CODEX_BIN_PATH: /usr/bin/codex
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - '3000:3000'
+    volumes:
+      - runner-data:/srv/repos
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: codex
+      POSTGRES_PASSWORD: codex
+      POSTGRES_DB: codex
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  redis:
+    image: redis:7
+    command: ['redis-server', '--save', '60', '1']
+    volumes:
+      - redis-data:/data
+    ports:
+      - '6379:6379'
+
+  minio:
+    image: minio/minio:RELEASE.2024-03-30T05-28-58Z
+    command: ['server', '/data']
+    environment:
+      MINIO_ROOT_USER: codex
+      MINIO_ROOT_PASSWORD: codexcodex
+    volumes:
+      - minio-data:/data
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:
+  runner-data:

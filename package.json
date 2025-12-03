@@ -1,0 +1,8 @@
+{
+  "name": "codex-remote-runner",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm --filter @codex/gateway dev"
+  }
+}
