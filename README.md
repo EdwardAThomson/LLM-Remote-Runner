@@ -68,8 +68,8 @@ Before you begin, ensure you have:
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/EdwardAThomson/Codex-Remote-Runner.git
-cd Codex-Remote-Runner
+git clone https://github.com/EdwardAThomson/LLM-Remote-Runner.git
+cd LLM-Remote-Runner
 
 # Enable pnpm
 corepack enable pnpm
