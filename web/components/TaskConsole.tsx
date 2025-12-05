@@ -32,6 +32,29 @@ const BACKENDS: { value: AnyBackend; label: string; icon: string; isApi?: boolea
   { value: 'gemini-api', label: 'Gemini API', icon: '🔵', isApi: true },
 ];
 
+type ModelOption = {
+  backend: AnyBackend;
+  value: string;
+  label: string;
+};
+
+const MODEL_OPTIONS: ModelOption[] = [
+  { backend: 'openai-api', value: 'gpt-5', label: 'OpenAI - GPT-5' },
+  { backend: 'openai-api', value: 'gpt-5-mini', label: 'OpenAI - GPT-5 Mini' },
+  { backend: 'openai-api', value: 'o4-mini', label: 'OpenAI - O4 Mini' },
+  { backend: 'gemini-api', value: 'gemini-2.5-pro', label: 'Gemini - 2.5 Pro' },
+  { backend: 'gemini-api', value: 'gemini-2.5-flash', label: 'Gemini - 2.5 Flash' },
+  { backend: 'gemini-cli', value: 'gemini-2.5-pro', label: 'Gemini CLI - 2.5 Pro' },
+  { backend: 'gemini-cli', value: 'gemini-2.5-flash', label: 'Gemini CLI - 2.5 Flash' },
+  { backend: 'gemini-cli', value: 'gemini-3-pro-preview', label: 'Gemini CLI - 3. Pro Preview' },
+  { backend: 'gemini-cli', value: 'gemini-3-flash-preview', label: 'Gemini CLI - 3. Flash Preview' },
+  {
+    backend: 'anthropic-api',
+    value: 'claude-sonnet-4-5-20250929',
+    label: 'Claude - Sonnet 4.5',
+  },
+];
+
 const STORAGE_KEY_BACKEND = 'llm-runner-backend';
 
 function getStoredBackend(): AnyBackend {
@@ -227,6 +250,10 @@ export default function TaskConsole() {
     setHeartbeatTs(null);
   };
 
+  const backendModelOptions = MODEL_OPTIONS.filter(
+    (option) => option.backend === backend,
+  );
+
   const modelPlaceholder = (() => {
     if (backend === 'openai-api') {
       return 'e.g. GPT-5.1 (if configured on the server)';
@@ -274,6 +301,28 @@ export default function TaskConsole() {
             disabled={isSubmitting}
           />
         </label>
+        {backendModelOptions.length > 0 ? (
+          <label className="form-field">
+            <span className="form-label">Model preset</span>
+            <select
+              className="form-select"
+              value={
+                backendModelOptions.some((option) => option.value === model)
+                  ? model
+                  : ''
+              }
+              onChange={(event) => setModel(event.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="">Use backend default</option>
+              {backendModelOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <label className="form-field">
           <span className="form-label">Model (optional)</span>
           <input
