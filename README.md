@@ -31,7 +31,7 @@ LLM Remote Runner is a full-stack application that provides a secure, web-based 
 ⚠️ **Warning** - This code has not been audited for security. Use at your own risk.
 
 
-![Screenshot](./Codex_Remote_Runner_Screenshot_20251031.png)
+![Screenshot](./LLM_Remote_Runner_Screenshot_20251205.png)
 
 ### Key Features
 

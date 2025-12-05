@@ -60,8 +60,9 @@ body {
   gap: 1.5rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.08), 0 18px 45px rgba(15, 23, 42, 0.25);
 }
 
 .form-field {
@@ -156,30 +157,33 @@ body {
 
 .primary-button {
   align-self: flex-start;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+  padding: 0.85rem 1.9rem;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background-color: #ffffff;
+  color: #4f46e5;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.05rem;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transition: all 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
 }
 
 .primary-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  background-color: #eef2ff;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.45);
 }
 
 .primary-button:active:not(:disabled) {
   transform: translateY(0);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.35);
 }
 
 .primary-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
 }
 
 .secondary-button {
@@ -229,7 +233,8 @@ body {
   background-color: #f8fafc;
   padding: 1.5rem;
   border-radius: 1rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.03), 0 14px 40px rgba(15, 23, 42, 0.12);
 }
 
 .section-title {
@@ -259,7 +264,7 @@ body {
   font-family: 'Fira Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.9rem;
   scroll-behavior: smooth;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), inset 0 2px 4px rgba(0, 0, 0, 0.05);
   /* Optimize scrolling performance */
   will-change: scroll-position;
   -webkit-overflow-scrolling: touch;
