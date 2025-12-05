@@ -60,7 +60,9 @@ export default function LoginPage() {
 
         <div className="login-footer">
           <p>
-            <strong>Note:</strong> Codex must be installed and authenticated with OpenAI on this machine.
+            <strong>Note:</strong> At least one LLM backend must be configured. If you use CLI backends (Codex,
+            Claude Code, Gemini CLI), they must be installed and authenticated on this machine. See the README for
+            setup details.
           </p>
         </div>
       </div>

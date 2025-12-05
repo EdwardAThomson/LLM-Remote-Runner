@@ -1,6 +1,6 @@
 # Web Client
 
-Next.js App Router frontend for Codex Remote Runner. Includes a basic task console that calls the shared SDK to create and stream tasks.
+Next.js App Router frontend for LLM Remote Runner. Includes a basic task console that calls the shared SDK to create and stream tasks across multiple LLM backends.
 
 ## Environment
 

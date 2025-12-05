@@ -6,8 +6,8 @@ export default function Header() {
   return (
     <header className="app-header">
       <div>
-        <h1>Codex Remote Runner</h1>
-        <p>Execute Codex tasks safely from the browser.</p>
+        <h1>LLM Remote Runner</h1>
+        <p>Execute LLM tasks safely from the browser using multiple backends.</p>
       </div>
       <button
         onClick={logout}

@@ -25,8 +25,23 @@ export async function login(password: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Login failed: ${error}`);
+    const contentType = response.headers.get('content-type') || '';
+    let message = `Request failed with status ${response.status}`;
+
+    if (contentType.includes('application/json')) {
+      try {
+        const data = await response.json();
+        if (data && typeof data === 'object' && 'message' in data && data.message) {
+          message = String((data as any).message);
+        } else {
+          message = JSON.stringify(data);
+        }
+      } catch {
+        // fall back to generic message
+      }
+    }
+
+    throw new Error(`Login failed: ${message}`);
   }
 
   const data: LoginResponse = await response.json();

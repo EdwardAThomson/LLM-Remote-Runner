@@ -34,6 +34,11 @@ export class AuthService {
       console.error('❌ Please run the setup script:');
       console.error('❌   cd gateway');
       console.error('❌   pnpm tsx scripts/setup-auth.ts');
+      console.error('❌');
+      console.error('❌   (The script is located at: gateway/scripts/setup-auth.ts)');
+      console.error('❌');
+      console.error('❌   If the script is missing, download it from:');
+      console.error('❌   https://github.com/EdwardAThomson/LLM-Remote-Runner');
       console.error('❌ ========================================\n');
       process.exit(1);
     }
@@ -46,11 +51,14 @@ export class AuthService {
       console.error('⚠️  The authentication setup script still exists!');
       console.error('⚠️  This is a security risk as it allows password resets.');
       console.error('⚠️  ');
-      console.error('⚠️  Please delete it before starting the server:');
-      console.error('⚠️    rm scripts/setup-auth.ts');
+      console.error('⚠️  Please delete it from the gateway directory:');
+      console.error('⚠️    cd gateway && rm scripts/setup-auth.ts');
+      console.error('⚠️');
+      console.error('⚠️  (Full path: gateway/scripts/setup-auth.ts)');
       console.error('⚠️  ');
       console.error('⚠️  If you need to reset your password in the future,');
-      console.error('⚠️  you can restore it from git history.');
+      console.error('⚠️  restore it from git history or download from:');
+      console.error('⚠️  https://github.com/EdwardAThomson/LLM-Remote-Runner');
       console.error('⚠️  ========================================\n');
       process.exit(1);
     }

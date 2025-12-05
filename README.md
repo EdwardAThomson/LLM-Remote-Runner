@@ -37,7 +37,7 @@ LLM Remote Runner is a full-stack application that provides a secure, web-based 
 
 - 🔐 **Secure Authentication** - Password-based login with bcrypt hashing and JWT sessions
 - 📡 **Real-time Streaming** - Server-Sent Events (SSE) for live task output
-- 🎯 **Task Management** - Create, monitor, and cancel Codex tasks
+- 🎯 **Task Management** - Create, monitor, and cancel LLM tasks
 - 🌐 **Modern UI** - Clean, responsive Next.js interface with TailwindCSS
 - 🔧 **Flexible Configuration** - Customizable workspace directories and paths
 - 📦 **Monorepo Architecture** - Well-organized codebase with shared SDK
@@ -58,9 +58,9 @@ This monorepo contains:
 Before you begin, ensure you have:
 
 - **Node.js** 18+ and **pnpm** 8+
-- **Codex CLI** installed and authenticated with OpenAI
-  - Install: `npm install -g @openai/codex-cli`
-  - Authenticate: `codex auth`
+- **At least one LLM backend** configured (CLI and/or API)
+  - For Codex CLI (optional): Install with `npm install -g @openai/codex-cli` and authenticate with `codex auth`
+  - For other CLI/API backends, see **Supported Backends** and **Environment Variables** below
 - **Git** for cloning the repository
 
 ## Quick Start
@@ -89,11 +89,11 @@ cp web/.env.local.example web/.env.local
 Edit `gateway/.env` and configure:
 
 ```bash
-# Path to Codex binary (use 'codex' if in PATH)
+# Path to Codex binary (if you plan to use the Codex CLI backend)
 CODEX_BIN_PATH=codex
 
-# Default workspace for Codex tasks
-DEFAULT_WORKSPACE=~/codex-workspace
+# Default workspace for LLM tasks
+DEFAULT_WORKSPACE=~/llm-workspace
 
 # Generate a strong JWT secret
 JWT_SECRET=$(openssl rand -base64 32)
@@ -140,10 +140,10 @@ pnpm dev
 
 ### 5. Create Default Workspace (Optional)
 
-The default workspace directory is `~/codex-workspace`. Create it if it doesn't exist:
+The default workspace directory is `~/llm-workspace`. Create it if it doesn't exist:
 
 ```bash
-mkdir -p ~/codex-workspace
+mkdir -p ~/llm-workspace
 ```
 
 **Note:** You can override this per-task in the web UI, or change the default in `gateway/.env` (`DEFAULT_WORKSPACE`).
@@ -152,18 +152,18 @@ mkdir -p ~/codex-workspace
 
 1. Open your browser to **http://localhost:3001**
 2. Log in with your admin password
-3. Start executing Codex tasks!
+3. Start executing LLM tasks with your configured backend(s)!
 
 ## Usage
 
 ### Web Interface
 
 1. **Login** - Enter your admin password
-2. **Set Workspace** - Specify the directory for Codex to work in
-   - Leave empty to use default: `~/codex-workspace`
+2. **Set Workspace** - Specify the working directory for the selected backend
+   - Leave empty to use default: `~/llm-workspace`
    - Or specify a custom path (e.g., `~/my-project`)
-3. **Enter Prompt** - Describe the task for Codex
-4. **Submit** - Watch real-time output as Codex executes
+3. **Enter Prompt** - Describe the task for the selected LLM backend
+4. **Submit** - Watch real-time output as the backend executes
 5. **Review** - Output history is preserved for the session
 
 ### API Usage
@@ -200,7 +200,7 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `JWT_SECRET` | Secret for signing JWT tokens | - | Yes |
 | `JWT_ISSUER` | JWT token issuer | `codex-remote-runner` | No |
 | `ADMIN_PASSWORD_HASH` | Bcrypt hash of admin password | - | Yes |
-| `DEFAULT_WORKSPACE` | Default workspace directory | `~/codex-workspace` | Yes |
+| `DEFAULT_WORKSPACE` | Default workspace directory | `~/llm-workspace` | Yes |
 | `RATE_LIMIT_POINTS` | Max requests per duration | `60` | No |
 | `RATE_LIMIT_DURATION` | Rate limit window (seconds) | `60` | No |
 | `TASK_HEARTBEAT_MS` | SSE heartbeat interval | `15000` | No |
@@ -234,7 +234,7 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 ### Project Structure
 
 ```
-codex-remote-runner/
+LLM-Remote-Runner/
 ├── gateway/          # NestJS backend API
 │   ├── src/
 │   │   ├── auth/     # Authentication module
@@ -272,27 +272,33 @@ pnpm --filter @codex/gateway build
 pnpm --filter @codex/web build
 ```
 ## Security Considerations
+  
+ ⚠️ **Important:** This application may execute arbitrary code via configured LLM backends (especially CLI tools like Codex). Follow these security practices:
+  
+  ### Development
+  - ✅ Use strong passwords (16+ characters)
+  - ✅ Keep `.env` files in `.gitignore`
+  - ✅ Run on `localhost` only
+  - ✅ Delete setup script after configuration
+  
+  ### Production
+  - 🔒 **Use HTTPS** - Configure reverse proxy with SSL/TLS
+  - 🔒 **Change all secrets** - Generate new JWT_SECRET and admin password
+  - 🔒 **Restrict CORS** - Update allowed origins in `gateway/src/main.ts`
+  - 🔒 **Use environment variables** - Not `.env` files (use Docker secrets, K8s secrets, etc.)
+  - 🔒 **Firewall rules** - Restrict gateway port access
+  - 🔒 **Regular updates** - Keep dependencies up to date
+  - 🔒 **Monitor logs** - Watch for unauthorized access attempts
+  
+  > 📖 See [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) for comprehensive security guidance.
 
-⚠️ **Important:** This application executes arbitrary code via Codex CLI. Follow these security practices:
+  ### Frontend dependency notes
 
-### Development
-- ✅ Use strong passwords (16+ characters)
-- ✅ Keep `.env` files in `.gitignore`
-- ✅ Run on `localhost` only
-- ✅ Delete setup script after configuration
+  The web UI currently uses **React 18** and **Next.js 14** (see `web/package.json`). Known issues like **CVE-2025-55182**, which target **React 19.x Server Components** and frameworks embedding those RSC packages, do not apply to this setup.
 
-### Production
-- 🔒 **Use HTTPS** - Configure reverse proxy with SSL/TLS
-- 🔒 **Change all secrets** - Generate new JWT_SECRET and admin password
-- 🔒 **Restrict CORS** - Update allowed origins in `gateway/src/main.ts`
-- 🔒 **Use environment variables** - Not `.env` files (use Docker secrets, K8s secrets, etc.)
-- 🔒 **Firewall rules** - Restrict gateway port access
-- 🔒 **Regular updates** - Keep dependencies up to date
-- 🔒 **Monitor logs** - Watch for unauthorized access attempts
-
-> 📖 See [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) for comprehensive security guidance.
-
-## Documentation
+  If you upgrade to **React 19 / Next 19** in the future, re-check the relevant security advisories and ensure you are on patched versions before deploying.
+  
+  ## Documentation
 
 - **[AUTHENTICATION.md](docs/AUTHENTICATION.md)** - Authentication setup and security
 - **[RUNNING.md](RUNNING.md)** - Detailed setup and API documentation
@@ -314,7 +320,7 @@ pnpm tsx scripts/setup-auth.ts
 Check that:
 - Port 3000 is available
 - All environment variables are set in `gateway/.env`
-- Codex CLI is installed and in PATH
+- Required CLI backends (for example, Codex, Claude Code, Gemini CLI) are installed and in PATH if you use them
 
 ### Web app can't connect to gateway
 
@@ -327,8 +333,8 @@ Verify:
 
 The default workspace directory may not exist:
 ```bash
-mkdir -p ~/codex-workspace
-chmod 755 ~/codex-workspace
+mkdir -p ~/llm-workspace
+chmod 755 ~/llm-workspace
 ```
 
 Or specify a different directory in the web UI workspace field.

@@ -10,6 +10,7 @@ import { envValidationSchema } from './config/env.validation';
 import appConfig from './config/app.config';
 import { TasksModule } from './tasks/tasks.module';
 import { AuthModule } from './auth/auth.module';
+import { ObservabilityModule } from './observability/observability.module';
 import { JwtAuthGuard } from './auth/jwt.guard';
 
 @Module({
@@ -33,6 +34,7 @@ import { JwtAuthGuard } from './auth/jwt.guard';
     }),
     AuthModule,
     TasksModule,
+    ObservabilityModule,
   ],
   providers: [
     {

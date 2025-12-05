@@ -47,6 +47,7 @@ export default function TaskConsole() {
   const [prompt, setPrompt] = useState('');
   const [cwd, setCwd] = useState('');
   const [backend, setBackend] = useState<AnyBackend>('codex');
+  const [model, setModel] = useState('');
   const [taskId, setTaskId] = useState<string | null>(null);
   const [currentTaskBackend, setCurrentTaskBackend] = useState<AnyBackend | null>(null);
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
@@ -67,6 +68,7 @@ export default function TaskConsole() {
   // Save backend preference when changed
   const handleBackendChange = (newBackend: AnyBackend) => {
     setBackend(newBackend);
+    setModel('');
     localStorage.setItem(STORAGE_KEY_BACKEND, newBackend);
   };
 
@@ -166,21 +168,25 @@ export default function TaskConsole() {
 
     const currentPrompt = prompt.trim();
     const currentCwd = cwd.trim();
+    const currentModel = model.trim();
 
     try {
       // Find backend display info
       const backendInfo = BACKENDS.find((b) => b.value === backend) ?? BACKENDS[0];
-      
-      // Show the prompt in the output
-      appendEntry({ 
-        type: 'info', 
-        message: `${backendInfo.icon} Backend: ${backendInfo.label}\n📝 Prompt: ${currentPrompt}${currentCwd ? `\n📁 Workspace: ${currentCwd}` : ''}` 
+      const workspacePart = currentCwd ? `\n📁 Workspace: ${currentCwd}` : '';
+      const modelPart = currentModel ? `\n🧠 Model: ${currentModel}` : '';
+
+      appendEntry({
+        type: 'info',
+        // message: `${backendInfo.icon} Backend: ${backendInfo.label}\n📝 Prompt: ${currentPrompt}${currentCwd ? `\n📁 Workspace: ${currentCwd}` : ''}` 
+        message: `${backendInfo.icon} Backend: ${backendInfo.label}\n📝 Prompt: ${currentPrompt}${workspacePart}${modelPart}`,
       });
 
       const task = await createTask({ 
         prompt: currentPrompt,
         cwd: currentCwd || undefined,
         backend,
+        model: currentModel || undefined,
       });
       setTaskId(task.task_id);
       setCurrentTaskBackend(backend);
@@ -221,6 +227,19 @@ export default function TaskConsole() {
     setHeartbeatTs(null);
   };
 
+  const modelPlaceholder = (() => {
+    if (backend === 'openai-api') {
+      return 'e.g. GPT-5.1 (if configured on the server)';
+    }
+    if (backend === 'anthropic-api') {
+      return 'e.g. Claude 4.5 Sonnet (if configured)';
+    }
+    if (backend === 'gemini-api' || backend === 'gemini-cli') {
+      return 'e.g. gemini-2.5-pro, Gemini 3 (if configured)';
+    }
+    return 'Leave empty to use the backend default model';
+  })();
+
   return (
     <>
       <Header />
@@ -252,6 +271,17 @@ export default function TaskConsole() {
             onChange={(event) => setCwd(event.target.value)}
             className="form-input"
             placeholder="~/llm-workspace"
+            disabled={isSubmitting}
+          />
+        </label>
+        <label className="form-field">
+          <span className="form-label">Model (optional)</span>
+          <input
+            type="text"
+            value={model}
+            onChange={(event) => setModel(event.target.value)}
+            className="form-input"
+            placeholder={modelPlaceholder}
             disabled={isSubmitting}
           />
         </label>
