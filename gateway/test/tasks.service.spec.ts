@@ -6,20 +6,31 @@ import {
 } from 'child_process';
 import { EventEmitter } from 'events';
 import { TasksService } from '../src/tasks/tasks.service';
+import {
+  AdapterFactory,
+  ApiAdapterFactory,
+  CodexAdapter,
+} from '../src/adapters';
 
 jest.mock('child_process', () => ({
   spawn: jest.fn(),
+  exec: jest.fn(),
 }));
 
-function createConfigService(): ConfigService {
+function createConfigService(overrides: Record<string, unknown> = {}): ConfigService {
+  const defaults: Record<string, unknown> = {
+    'app.codexBinPath': '/usr/bin/fake-codex',
+    'app.claudeBinPath': '/usr/bin/fake-claude',
+    'app.geminiBinPath': '/usr/bin/fake-gemini',
+    'app.geminiDefaultModel': 'gemini-2.5-pro',
+    'app.defaultBackend': 'codex',
+    'app.taskHeartbeatMs': 0,
+    'app.defaultWorkspace': '/tmp/workspace',
+  };
+  const values = { ...defaults, ...overrides };
   return {
-    get: (key: string, defaultValue?: unknown) => {
-      if (key === 'app.codexBinPath') {
-        return '/usr/bin/fake-codex';
-      }
-
-      return defaultValue;
-    },
+    get: (key: string, defaultValue?: unknown) =>
+      key in values ? values[key] : defaultValue,
   } as unknown as ConfigService;
 }
 
@@ -45,24 +56,36 @@ async function flushMicrotasks() {
 describe('TasksService', () => {
   const spawnMock = spawn as jest.Mock;
   let service: TasksService;
+  let configService: ConfigService;
+  let adapterFactory: AdapterFactory;
+  let apiAdapterFactory: ApiAdapterFactory;
 
   beforeEach(() => {
     spawnMock.mockReset();
-
-    service = new TasksService(createConfigService());
+    configService = createConfigService();
+    adapterFactory = new AdapterFactory(configService);
+    apiAdapterFactory = { getAdapter: jest.fn() } as unknown as ApiAdapterFactory;
+    service = new TasksService(configService, adapterFactory, apiAdapterFactory);
   });
 
-  it('spawns Codex, streams logs, and persists task history', async () => {
+  it('spawns Codex via the adapter, streams logs, and persists task history', async () => {
     const child = createChildProcess();
     spawnMock.mockReturnValue(child);
 
     const summary = await service.create({ prompt: 'demo task' });
 
-    expect(spawnMock).toHaveBeenCalledWith('/usr/bin/fake-codex', [
+    expect(summary.backend).toBe('codex');
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    const [bin, args] = spawnMock.mock.calls[0];
+    expect(bin).toBe('/usr/bin/fake-codex');
+    expect(args).toEqual([
       'exec',
-      '--prompt',
+      '--full-auto',
+      '--skip-git-repo-check',
+      '-C',
+      '/tmp/workspace',
       'demo task',
-    ], expect.any(Object));
+    ]);
 
     const stream = await service.streamTask(summary.id);
     const events: MessageEvent[] = [];
@@ -126,5 +149,34 @@ describe('TasksService', () => {
     expect(detail.errorMessage).toBe('User requested cancellation');
 
     jest.useRealTimers();
+  });
+
+  it('routes claude-cli requests to the Claude adapter', async () => {
+    const child = createChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    const summary = await service.create({
+      prompt: 'hello claude',
+      backend: 'claude-cli',
+    });
+
+    expect(summary.backend).toBe('claude-cli');
+    const [bin, args] = spawnMock.mock.calls[0];
+    expect(bin).toBe('/usr/bin/fake-claude');
+    expect(args).toEqual(['-p', 'hello claude', '--output-format', 'json']);
+  });
+
+  it('routes gemini-cli requests with the configured default model', async () => {
+    const child = createChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    await service.create({
+      prompt: 'hello gemini',
+      backend: 'gemini-cli',
+    });
+
+    const [bin, args] = spawnMock.mock.calls[0];
+    expect(bin).toBe('/usr/bin/fake-gemini');
+    expect(args).toEqual(['-p', 'hello gemini', '-m', 'gemini-2.5-pro']);
   });
 });

@@ -58,10 +58,53 @@ This monorepo contains:
 Before you begin, ensure you have:
 
 - **Node.js** 18+ and **pnpm** 8+
-- **At least one LLM backend** configured (CLI and/or API)
-  - For Codex CLI (optional): Install with `npm install -g @openai/codex-cli` and authenticate with `codex auth`
-  - For other CLI/API backends, see **Supported Backends** and **Environment Variables** below
+- **At least one LLM backend** configured (CLI and/or API) — see [Backend Setup](#backend-setup) below
 - **Git** for cloning the repository
+
+## Backend Setup
+
+You only need one backend to use the runner. Each adapter is independent; the UI shows whichever ones are configured.
+
+### Codex CLI (OpenAI)
+
+```bash
+npm install -g @openai/codex-cli
+codex auth   # complete the OAuth flow in your browser
+```
+
+The adapter runs `codex exec --full-auto --skip-git-repo-check -C <cwd> "<prompt>"`. `--full-auto` skips all approval prompts — see the [Security Considerations](#security-considerations) section before exposing this to anyone you don't trust.
+
+### Claude Code CLI (Anthropic)
+
+```bash
+npm install -g @anthropic-ai/claude-code
+claude   # first run will prompt for OAuth login
+```
+
+The adapter runs `claude -p "<prompt>" --output-format json` and extracts the `result` field from the JSON envelope.
+
+### Gemini CLI (Google)
+
+```bash
+npm install -g @google/gemini-cli
+gemini   # first run will prompt for auth (OAuth or API key)
+```
+
+The adapter runs `gemini -p "<prompt>" -m <model>`. The model is taken from `GEMINI_DEFAULT_MODEL` (defaults to `gemini-2.5-pro`) unless overridden per task.
+
+### API backends (OpenAI / Anthropic / Gemini)
+
+No CLI required — just set the relevant key in `gateway/.env`:
+
+```bash
+OPENAI_API_KEY=sk-...
+# and/or
+ANTHROPIC_API_KEY=sk-ant-...
+# and/or
+GEMINI_API_KEY=...
+```
+
+Model defaults and optional `*_BASE_URL` overrides are listed under [Environment Variables](#environment-variables).
 
 ## Quick Start
 
@@ -204,6 +247,9 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `RATE_LIMIT_POINTS` | Max requests per duration | `60` | No |
 | `RATE_LIMIT_DURATION` | Rate limit window (seconds) | `60` | No |
 | `TASK_HEARTBEAT_MS` | SSE heartbeat interval | `15000` | No |
+| `DEFAULT_BACKEND` | Backend used when a task does not specify one (`codex`, `claude-cli`, `gemini-cli`, `openai-api`, `anthropic-api`, `gemini-api`) | `codex` | No |
+| `LOG_LEVEL` | NestJS log level (`fatal` / `error` / `warn` / `log` / `debug` / `verbose`) | `log` | No |
+| `API_TIMEOUT_MS` | Timeout for API-backend HTTP requests | `120000` | No |
 
 **CLI Backend Paths:**
 
@@ -212,14 +258,21 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `CODEX_BIN_PATH` | Path to Codex binary | `codex` | No* |
 | `CLAUDE_BIN_PATH` | Path to Claude Code binary | `claude` | No* |
 | `GEMINI_BIN_PATH` | Path to Gemini CLI binary | `gemini` | No* |
+| `GEMINI_DEFAULT_MODEL` | Default model passed to Gemini CLI via `-m` | `gemini-2.5-pro` | No |
 
-**API Backend Keys:**
+**API Backend Keys & Models:**
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `OPENAI_API_KEY` | OpenAI API key | - | No* |
+| `OPENAI_DEFAULT_MODEL` | Default OpenAI model | `gpt-4o` | No |
+| `OPENAI_BASE_URL` | Override OpenAI API base URL (for proxies / Azure-compat) | - | No |
 | `ANTHROPIC_API_KEY` | Anthropic API key | - | No* |
+| `ANTHROPIC_DEFAULT_MODEL` | Default Anthropic model | `claude-sonnet-4-20250514` | No |
+| `ANTHROPIC_BASE_URL` | Override Anthropic API base URL | - | No |
 | `GEMINI_API_KEY` | Google Gemini API key | - | No* |
+| `GEMINI_API_DEFAULT_MODEL` | Default Gemini API model | `gemini-1.5-pro` | No |
+| `GEMINI_API_BASE_URL` | Override Gemini API base URL | - | No |
 
 *At least one backend (CLI or API) must be configured.
 
@@ -300,10 +353,12 @@ pnpm --filter @codex/web build
   
   ## Documentation
 
-- **[AUTHENTICATION.md](docs/AUTHENTICATION.md)** - Authentication setup and security
+- **[AUTHENTICATION.md](docs/AUTHENTICATION.md)** - Authentication setup
+- **[SECURITY.md](docs/SECURITY.md)** - Threat model, current mitigations, and open risks
 - **[RUNNING.md](RUNNING.md)** - Detailed setup and API documentation
-- **[plan.md](plan.md)** - Project planning and architecture
-- **[spec.md](spec.md)** - Technical specifications
+- **[docs/plan.md](docs/plan.md)** - Project planning and architecture
+- **[docs/spec.md](docs/spec.md)** - Technical specifications
+- **[ROADMAP.md](ROADMAP.md)** - Multi-provider roadmap and progress
 
 ## Troubleshooting
 
@@ -338,6 +393,16 @@ chmod 755 ~/llm-workspace
 ```
 
 Or specify a different directory in the web UI workspace field.
+
+### Per-backend issues
+
+**Codex** — `command not found: codex`: confirm the binary is on the gateway process's `PATH`, or set `CODEX_BIN_PATH` to its absolute path. If tasks fail immediately with auth errors, run `codex auth` (the OAuth state lives in `~/.codex/`, which must be readable by the gateway user).
+
+**Claude Code CLI** — if the task completes but the UI shows raw JSON like `{"result": "..."}`, the adapter's output parser didn't get JSON it could read; check that `claude --version` and `claude -p hi --output-format json` work directly. Long prompts can hit `ARG_MAX` on some platforms since prompts are passed via argv.
+
+**Gemini CLI** — `model not found`: set `GEMINI_DEFAULT_MODEL` to a model your account has access to, or pass `model` on the task. Auth issues: the CLI uses `~/.gemini/` for OAuth state; if you're running the gateway as a different user, that directory must be readable by them.
+
+**OpenAI / Anthropic / Gemini API** — `401` or `invalid api key` in the task output means the relevant `*_API_KEY` is missing or wrong. If you're behind a corporate proxy or hitting an Azure-compatible endpoint, set the matching `*_BASE_URL`.
 
 ## License
 
