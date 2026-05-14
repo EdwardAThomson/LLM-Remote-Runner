@@ -240,7 +240,7 @@ Phases 1-5 are largely complete. Remaining work:
 **Phase 5: Remaining Polish** (deferred)
 1. Per-provider API adapter unit tests (`OpenAiApiAdapter`, `AnthropicApiAdapter`, `GeminiApiAdapter`) — needs SDK mocking
 2. E2E test for web UI backend selection — needs Playwright/Cypress setup
-3. Address the findings in [docs/SECURITY.md](docs/SECURITY.md), especially F-1 (`cwd` allowlist) and F-3 (subprocess env curation)
+3. Continue working through [docs/SECURITY.md](docs/SECURITY.md). F-1 (workspace allowlist) and F-3 (subprocess env curation) are resolved; F-2/F-4/F-5/F-6/F-7/F-8 remain.
 
 **Phase 6: Session Continuity**
 1. Map each CLI's resume capability and pick a uniform option surface

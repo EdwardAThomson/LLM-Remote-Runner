@@ -46,6 +46,12 @@ export class ClaudeCliAdapter extends BaseCliAdapter {
     return {
       command: this.config.binPath,
       args,
+      // Disable the in-place auto-updater. The Claude CLI's self-update
+      // overwrites bin/claude.exe with the JS stub without re-running the
+      // postinstall, leaving the install broken until fix-claude.sh runs.
+      // Setting this env var keeps the gateway's invocations from ever
+      // triggering that update path.
+      env: { DISABLE_AUTOUPDATER: '1' },
       // Claude CLI uses CWD from the spawn options, not a flag
     };
   }

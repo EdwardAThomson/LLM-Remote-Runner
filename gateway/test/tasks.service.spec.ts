@@ -5,12 +5,15 @@ import {
   spawn,
 } from 'child_process';
 import { EventEmitter } from 'events';
+import { mkdtemp, realpath, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { TasksService } from '../src/tasks/tasks.service';
 import {
   AdapterFactory,
   ApiAdapterFactory,
-  CodexAdapter,
 } from '../src/adapters';
+import { TasksRepository } from '../src/tasks/tasks.repository';
 
 jest.mock('child_process', () => ({
   spawn: jest.fn(),
@@ -22,10 +25,11 @@ function createConfigService(overrides: Record<string, unknown> = {}): ConfigSer
     'app.codexBinPath': '/usr/bin/fake-codex',
     'app.claudeBinPath': '/usr/bin/fake-claude',
     'app.geminiBinPath': '/usr/bin/fake-gemini',
-    'app.geminiDefaultModel': 'gemini-2.5-pro',
+    'app.geminiDefaultModel': 'gemini-3.1-pro-preview',
     'app.defaultBackend': 'codex',
     'app.taskHeartbeatMs': 0,
-    'app.defaultWorkspace': '/tmp/workspace',
+    'app.allowedWorkspaces': [],
+    'app.extraSubprocessEnv': [],
   };
   const values = { ...defaults, ...overrides };
   return {
@@ -59,13 +63,37 @@ describe('TasksService', () => {
   let configService: ConfigService;
   let adapterFactory: AdapterFactory;
   let apiAdapterFactory: ApiAdapterFactory;
+  let tasksRepository: TasksRepository;
+  let workspaceRoot: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     spawnMock.mockReset();
-    configService = createConfigService();
+    workspaceRoot = await realpath(await mkdtemp(join(tmpdir(), 'lrr-tasks-')));
+    configService = createConfigService({
+      'app.defaultWorkspace': workspaceRoot,
+    });
     adapterFactory = new AdapterFactory(configService);
     apiAdapterFactory = { getAdapter: jest.fn() } as unknown as ApiAdapterFactory;
-    service = new TasksService(configService, adapterFactory, apiAdapterFactory);
+    tasksRepository = {
+      insert: jest.fn(),
+      updateState: jest.fn(),
+      appendLog: jest.fn(),
+      findSummary: jest.fn().mockReturnValue(null),
+      findDetail: jest.fn().mockReturnValue(null),
+      listSummaries: jest.fn().mockReturnValue([]),
+      deleteTask: jest.fn(),
+      markInterruptedAsError: jest.fn().mockReturnValue([]),
+    } as unknown as TasksRepository;
+    service = new TasksService(
+      configService,
+      adapterFactory,
+      apiAdapterFactory,
+      tasksRepository,
+    );
+  });
+
+  afterEach(async () => {
+    await rm(workspaceRoot, { recursive: true, force: true });
   });
 
   it('spawns Codex via the adapter, streams logs, and persists task history', async () => {
@@ -83,7 +111,7 @@ describe('TasksService', () => {
       '--full-auto',
       '--skip-git-repo-check',
       '-C',
-      '/tmp/workspace',
+      workspaceRoot,
       'demo task',
     ]);
 
@@ -177,6 +205,66 @@ describe('TasksService', () => {
 
     const [bin, args] = spawnMock.mock.calls[0];
     expect(bin).toBe('/usr/bin/fake-gemini');
-    expect(args).toEqual(['-p', 'hello gemini', '-m', 'gemini-2.5-pro']);
+    expect(args).toEqual([
+      '--skip-trust',
+      '-p',
+      'hello gemini',
+      '-m',
+      'gemini-3.1-pro-preview',
+    ]);
+  });
+
+  it('rejects a cwd outside the allowlist (F-1)', async () => {
+    await expect(
+      service.create({ prompt: 'p', cwd: '/etc' }),
+    ).rejects.toThrow(/not in the allowlist|does not exist|not accessible/);
+    expect(spawnMock).not.toHaveBeenCalled();
+  });
+
+  it('does not forward secrets in process.env to spawned CLIs (F-3)', async () => {
+    const previousEnv = { ...process.env };
+    process.env.JWT_SECRET = 'jwt-leak-test';
+    process.env.ADMIN_PASSWORD_HASH = 'hash-leak-test';
+    process.env.OPENAI_API_KEY = 'sk-leak-test';
+    try {
+      const child = createChildProcess();
+      spawnMock.mockReturnValue(child);
+
+      await service.create({ prompt: 'demo task' });
+
+      const spawnedEnv = spawnMock.mock.calls[0][2].env as Record<string, string>;
+      expect(spawnedEnv).not.toHaveProperty('JWT_SECRET');
+      expect(spawnedEnv).not.toHaveProperty('ADMIN_PASSWORD_HASH');
+      expect(spawnedEnv).not.toHaveProperty('OPENAI_API_KEY');
+      expect(spawnedEnv.PATH).toBeDefined();
+    } finally {
+      process.env = previousEnv;
+    }
+  });
+
+  it('honors EXTRA_SUBPROCESS_ENV opt-ins (F-3)', async () => {
+    process.env.MY_CUSTOM_VAR = 'forwarded-value';
+    configService = createConfigService({
+      'app.defaultWorkspace': workspaceRoot,
+      'app.extraSubprocessEnv': ['MY_CUSTOM_VAR'],
+    });
+    adapterFactory = new AdapterFactory(configService);
+    service = new TasksService(
+      configService,
+      adapterFactory,
+      apiAdapterFactory,
+      tasksRepository,
+    );
+
+    const child = createChildProcess();
+    spawnMock.mockReturnValue(child);
+
+    try {
+      await service.create({ prompt: 'demo task' });
+      const spawnedEnv = spawnMock.mock.calls[0][2].env as Record<string, string>;
+      expect(spawnedEnv.MY_CUSTOM_VAR).toBe('forwarded-value');
+    } finally {
+      delete process.env.MY_CUSTOM_VAR;
+    }
   });
 });

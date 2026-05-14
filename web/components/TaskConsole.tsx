@@ -39,15 +39,19 @@ type ModelOption = {
 };
 
 const MODEL_OPTIONS: ModelOption[] = [
-  { backend: 'openai-api', value: 'gpt-5', label: 'OpenAI - GPT-5' },
-  { backend: 'openai-api', value: 'gpt-5-mini', label: 'OpenAI - GPT-5 Mini' },
-  { backend: 'openai-api', value: 'o4-mini', label: 'OpenAI - O4 Mini' },
+  { backend: 'openai-api', value: 'gpt-5.5', label: 'OpenAI - GPT-5.5' },
+  { backend: 'openai-api', value: 'gpt-5.4', label: 'OpenAI - GPT-5.4' },
+  { backend: 'openai-api', value: 'gpt-5.2', label: 'OpenAI - GPT-5.2' },
+  { backend: 'gemini-api', value: 'gemini-3.1-pro-preview', label: 'Gemini - 3.1 Pro Preview' },
+  { backend: 'gemini-api', value: 'gemini-3-pro-preview', label: 'Gemini - 3 Pro Preview' },
+  { backend: 'gemini-api', value: 'gemini-3-flash-preview', label: 'Gemini - 3 Flash Preview' },
   { backend: 'gemini-api', value: 'gemini-2.5-pro', label: 'Gemini - 2.5 Pro' },
   { backend: 'gemini-api', value: 'gemini-2.5-flash', label: 'Gemini - 2.5 Flash' },
+  { backend: 'gemini-cli', value: 'gemini-3.1-pro-preview', label: 'Gemini CLI - 3.1 Pro Preview' },
+  { backend: 'gemini-cli', value: 'gemini-3-pro-preview', label: 'Gemini CLI - 3 Pro Preview' },
+  { backend: 'gemini-cli', value: 'gemini-3-flash-preview', label: 'Gemini CLI - 3 Flash Preview' },
   { backend: 'gemini-cli', value: 'gemini-2.5-pro', label: 'Gemini CLI - 2.5 Pro' },
   { backend: 'gemini-cli', value: 'gemini-2.5-flash', label: 'Gemini CLI - 2.5 Flash' },
-  { backend: 'gemini-cli', value: 'gemini-3-pro-preview', label: 'Gemini CLI - 3. Pro Preview' },
-  { backend: 'gemini-cli', value: 'gemini-3-flash-preview', label: 'Gemini CLI - 3. Flash Preview' },
   {
     backend: 'anthropic-api',
     value: 'claude-sonnet-4-5-20250929',
@@ -71,6 +75,7 @@ export default function TaskConsole() {
   const [cwd, setCwd] = useState('');
   const [backend, setBackend] = useState<AnyBackend>('codex');
   const [model, setModel] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [currentTaskBackend, setCurrentTaskBackend] = useState<AnyBackend | null>(null);
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
@@ -256,13 +261,13 @@ export default function TaskConsole() {
 
   const modelPlaceholder = (() => {
     if (backend === 'openai-api') {
-      return 'e.g. GPT-5.1 (if configured on the server)';
+      return 'e.g. gpt-5.5 (if configured on the server)';
     }
     if (backend === 'anthropic-api') {
       return 'e.g. Claude 4.5 Sonnet (if configured)';
     }
     if (backend === 'gemini-api' || backend === 'gemini-cli') {
-      return 'e.g. gemini-2.5-pro, Gemini 3 (if configured)';
+      return 'e.g. gemini-3.1-pro-preview, gemini-3-flash-preview (if configured)';
     }
     return 'Leave empty to use the backend default model';
   })();
@@ -272,82 +277,141 @@ export default function TaskConsole() {
       <Header />
       <div className="task-console">
         <form onSubmit={handleSubmit} className="task-form">
-        <label className="form-field">
-          <span className="form-label">Backend</span>
-          <select
-            value={backend}
-            onChange={(e) => handleBackendChange(e.target.value as AnyBackend)}
-            className="form-select"
-            disabled={isSubmitting}
-          >
-            {BACKENDS.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.icon} {b.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="form-field">
-          <span className="form-label">
-            Workspace Directory (optional)
-            <span className="form-hint"> — Default: ~/llm-workspace</span>
-          </span>
-          <input
-            type="text"
-            value={cwd}
-            onChange={(event) => setCwd(event.target.value)}
-            className="form-input"
-            placeholder="~/llm-workspace"
-            disabled={isSubmitting}
-          />
-        </label>
-        {backendModelOptions.length > 0 ? (
-          <label className="form-field">
-            <span className="form-label">Model preset</span>
-            <select
-              className="form-select"
-              value={
-                backendModelOptions.some((option) => option.value === model)
-                  ? model
-                  : ''
-              }
-              onChange={(event) => setModel(event.target.value)}
+          <div className="task-form-controls">
+            <label className="form-field form-field-inline">
+              <span className="form-label">Backend</span>
+              <select
+                value={backend}
+                onChange={(e) => handleBackendChange(e.target.value as AnyBackend)}
+                className="form-select"
+                disabled={isSubmitting}
+              >
+                {BACKENDS.map((b) => (
+                  <option key={b.value} value={b.value}>
+                    {b.icon} {b.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="settings-button"
+              onClick={() => setShowSettings(true)}
               disabled={isSubmitting}
+              title="Workspace & model settings"
             >
-              <option value="">Use backend default</option>
-              {backendModelOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              <span className="settings-button-icon" aria-hidden>⚙️</span>
+              <span className="settings-button-label">
+                <span className="settings-button-title">Settings</span>
+                {(() => {
+                  const parts: string[] = [];
+                  if (model.trim()) parts.push(`model: ${model.trim()}`);
+                  if (cwd.trim()) parts.push(`cwd: ${cwd.trim()}`);
+                  return parts.length > 0 ? (
+                    <span className="settings-button-summary">{parts.join(' · ')}</span>
+                  ) : null;
+                })()}
+              </span>
+            </button>
+          </div>
+          <label className="form-field">
+            <span className="form-label">Prompt</span>
+            <textarea
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              className="form-textarea"
+              placeholder="Describe the task for the LLM"
+              disabled={isSubmitting}
+            />
           </label>
+          <button type="submit" className="primary-button" disabled={isSubmitting}>
+            {isSubmitting ? 'Submitting…' : 'Run Task'}
+          </button>
+        </form>
+
+        {showSettings ? (
+          <div
+            className="modal-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-modal-title"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setShowSettings(false);
+            }}
+          >
+            <div className="modal-card">
+              <div className="modal-header">
+                <h2 id="settings-modal-title" className="modal-title">Task settings</h2>
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={() => setShowSettings(false)}
+                  aria-label="Close settings"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="modal-body">
+                <p className="modal-note">
+                  Leave fields empty to use the CLI's configured defaults.
+                </p>
+                <label className="form-field form-field-dark">
+                  <span className="form-label-dark">
+                    Workspace Directory (optional)
+                    <span className="form-hint-dark"> — Default: ~/llm-workspace</span>
+                  </span>
+                  <input
+                    type="text"
+                    value={cwd}
+                    onChange={(event) => setCwd(event.target.value)}
+                    className="form-input"
+                    placeholder="~/llm-workspace"
+                  />
+                </label>
+                {backendModelOptions.length > 0 ? (
+                  <label className="form-field form-field-dark">
+                    <span className="form-label-dark">Model preset</span>
+                    <select
+                      className="form-select"
+                      value={
+                        backendModelOptions.some((option) => option.value === model)
+                          ? model
+                          : ''
+                      }
+                      onChange={(event) => setModel(event.target.value)}
+                    >
+                      <option value="">Use backend default</option>
+                      {backendModelOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <label className="form-field form-field-dark">
+                  <span className="form-label-dark">Model (optional)</span>
+                  <input
+                    type="text"
+                    value={model}
+                    onChange={(event) => setModel(event.target.value)}
+                    className="form-input"
+                    placeholder={modelPlaceholder}
+                  />
+                </label>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setShowSettings(false)}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
         ) : null}
-        <label className="form-field">
-          <span className="form-label">Model (optional)</span>
-          <input
-            type="text"
-            value={model}
-            onChange={(event) => setModel(event.target.value)}
-            className="form-input"
-            placeholder={modelPlaceholder}
-            disabled={isSubmitting}
-          />
-        </label>
-        <label className="form-field">
-          <span className="form-label">Prompt</span>
-          <textarea
-            value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
-            className="form-textarea"
-            placeholder="Describe the task for the LLM"
-            disabled={isSubmitting}
-          />
-        </label>
-        <button type="submit" className="primary-button" disabled={isSubmitting}>
-          {isSubmitting ? 'Submitting…' : 'Run Task'}
-        </button>
-      </form>
 
       {error ? <p className="error-banner">{error}</p> : null}
 

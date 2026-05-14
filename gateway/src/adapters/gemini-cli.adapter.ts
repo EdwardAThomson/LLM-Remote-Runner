@@ -18,7 +18,7 @@ import { BaseCliAdapter } from './base-cli.adapter';
  */
 export const DEFAULT_GEMINI_CONFIG: CliConfig = {
   binPath: 'gemini',
-  defaultModel: 'gemini-2.5-pro',
+  defaultModel: 'gemini-3-flash-preview',
   defaultTimeoutMs: 180000, // 3 minutes
 };
 
@@ -33,16 +33,19 @@ export class GeminiCliAdapter extends BaseCliAdapter {
     super({ ...DEFAULT_GEMINI_CONFIG, ...config });
   }
 
+  // Gemini CLI 0.42+ refuses to run in an untrusted directory unless
+  // --skip-trust is passed or GEMINI_CLI_TRUST_WORKSPACE=true is set.
+  // The gateway's workspace allowlist (F-1) already constrains where CLIs run.
   /**
    * Build the gemini command
    *
    * @example
-   * gemini -p "prompt" -m gemini-2.5-pro
+   * gemini --skip-trust -p "prompt" -m gemini-3-flash-preview
    */
   buildCommand(options: CliCommandOptions): CliInvocation {
-    const model = options.model ?? this.config.defaultModel ?? 'gemini-2.5-pro';
+    const model = options.model ?? this.config.defaultModel ?? 'gemini-3-flash-preview';
 
-    const args = ['-p', options.prompt, '-m', model];
+    const args = ['--skip-trust', '-p', options.prompt, '-m', model];
 
     return {
       command: this.config.binPath,

@@ -71,6 +71,183 @@ body {
   gap: 0.5rem;
 }
 
+.task-form-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.form-field-inline {
+  flex: 0 0 auto;
+  min-width: 220px;
+}
+
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.settings-button:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.settings-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-button-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.settings-button-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.settings-button-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.settings-button-summary {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 28rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 50;
+  backdrop-filter: blur(2px);
+}
+
+.modal-card {
+  background: #ffffff;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 3rem);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+}
+
+.modal-close:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+}
+
+.modal-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background-color: #eef2ff;
+  border-left: 3px solid #667eea;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.form-field-dark {
+  /* Form field rendered on a light background (modal) */
+}
+
+.form-label-dark {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.form-hint-dark {
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.form-field-dark .form-input,
+.form-field-dark .form-select {
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+}
+
+.form-field-dark .form-input:focus,
+.form-field-dark .form-select:focus {
+  border-color: #667eea;
+  background-color: #fff;
+}
+
 .form-label {
   font-weight: 600;
   font-size: 0.9rem;

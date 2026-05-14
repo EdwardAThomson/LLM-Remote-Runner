@@ -146,7 +146,7 @@ Since Codex sandboxes to directories, the app should:
 
 3. **Validate paths** against allow-list
    ```typescript
-   const ALLOWED_ROOTS = ['/home/edward/codex-workspace'];
+   const ALLOWED_ROOTS = ['/srv/codex-workspace'];
    if (!ALLOWED_ROOTS.some(root => path.startsWith(root))) {
      throw new Error('Invalid workspace path');
    }

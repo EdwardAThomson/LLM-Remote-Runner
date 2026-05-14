@@ -15,6 +15,15 @@ coverage
 *.lock
 temp
 
+# SQLite databases (runtime data)
+gateway/data/
+*.db
+*.db-shm
+*.db-wal
+
+# TypeScript incremental build state
+*.tsbuildinfo
+
 # Next.js build output
 .next
 out

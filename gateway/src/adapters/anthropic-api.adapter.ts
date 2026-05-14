@@ -8,28 +8,23 @@ import { BaseApiAdapter } from './base-api.adapter';
 
 /**
  * Anthropic API adapter
- * Supports Claude 3.5, Claude 3, and other Anthropic models
  */
 export class AnthropicApiAdapter extends BaseApiAdapter {
   readonly backend = 'anthropic-api' as const;
   readonly displayName = 'Anthropic API';
-  
+
   private readonly baseUrl: string;
   private readonly apiVersion = '2023-06-01';
-  
+
   constructor(config: ApiConfig) {
     super(config);
     this.baseUrl = config.baseUrl ?? 'https://api.anthropic.com/v1';
   }
-  
+
   getAvailableModels(): string[] {
     return [
-      'claude-sonnet-4-20250514',
-      'claude-3-5-sonnet-20241022',
-      'claude-3-5-haiku-20241022',
-      'claude-3-opus-20240229',
-      'claude-3-sonnet-20240229',
-      'claude-3-haiku-20240307',
+      'claude-sonnet-4-5-20250929',
+      'claude-haiku-4-5-20251001',
     ];
   }
   

@@ -43,7 +43,7 @@ export class ApiAdapterFactory {
   private getOpenAiConfig(): ApiConfig {
     return {
       apiKey: this.configService.get<string>('app.openaiApiKey', ''),
-      defaultModel: this.configService.get<string>('app.openaiDefaultModel', 'gpt-4o'),
+      defaultModel: this.configService.get<string>('app.openaiDefaultModel', 'gpt-5.5'),
       baseUrl: this.configService.get<string>('app.openaiBaseUrl'),
       timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
     };
@@ -52,7 +52,7 @@ export class ApiAdapterFactory {
   private getAnthropicConfig(): ApiConfig {
     return {
       apiKey: this.configService.get<string>('app.anthropicApiKey', ''),
-      defaultModel: this.configService.get<string>('app.anthropicDefaultModel', 'claude-sonnet-4-20250514'),
+      defaultModel: this.configService.get<string>('app.anthropicDefaultModel', 'claude-sonnet-4-5-20250929'),
       baseUrl: this.configService.get<string>('app.anthropicBaseUrl'),
       timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
     };
@@ -61,7 +61,7 @@ export class ApiAdapterFactory {
   private getGeminiApiConfig(): ApiConfig {
     return {
       apiKey: this.configService.get<string>('app.geminiApiKey', ''),
-      defaultModel: this.configService.get<string>('app.geminiApiDefaultModel', 'gemini-1.5-pro'),
+      defaultModel: this.configService.get<string>('app.geminiApiDefaultModel', 'gemini-3-flash-preview'),
       baseUrl: this.configService.get<string>('app.geminiApiBaseUrl'),
       timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
     };

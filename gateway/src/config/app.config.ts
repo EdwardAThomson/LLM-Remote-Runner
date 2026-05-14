@@ -33,7 +33,20 @@ export interface AppConfig {
   rateLimitDuration: number;
   taskHeartbeatMs: number;
   defaultWorkspace: string;
+  allowedWorkspaces: string[];
+  extraSubprocessEnv: string[];
   adminPasswordHash: string;
+  dbPath: string;
+}
+
+function parseList(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 /**
@@ -53,18 +66,18 @@ export default registerAs<AppConfig>('app', () => ({
   claudeBinPath: expandPath(process.env.CLAUDE_BIN_PATH ?? 'claude'),
   geminiBinPath: expandPath(process.env.GEMINI_BIN_PATH ?? 'gemini'),
   // Default models (CLI)
-  geminiDefaultModel: process.env.GEMINI_DEFAULT_MODEL ?? 'gemini-2.5-pro',
+  geminiDefaultModel: process.env.GEMINI_DEFAULT_MODEL ?? 'gemini-3-flash-preview',
   // Default backend
   defaultBackend: (process.env.DEFAULT_BACKEND as CliBackend) ?? 'codex',
   // API keys (optional - leave empty to disable)
   openaiApiKey: process.env.OPENAI_API_KEY ?? '',
-  openaiDefaultModel: process.env.OPENAI_DEFAULT_MODEL ?? 'gpt-4o',
+  openaiDefaultModel: process.env.OPENAI_DEFAULT_MODEL ?? 'gpt-5.5',
   openaiBaseUrl: process.env.OPENAI_BASE_URL,
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
-  anthropicDefaultModel: process.env.ANTHROPIC_DEFAULT_MODEL ?? 'claude-sonnet-4-20250514',
+  anthropicDefaultModel: process.env.ANTHROPIC_DEFAULT_MODEL ?? 'claude-sonnet-4-5-20250929',
   anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL,
   geminiApiKey: process.env.GEMINI_API_KEY ?? '',
-  geminiApiDefaultModel: process.env.GEMINI_API_DEFAULT_MODEL ?? 'gemini-1.5-pro',
+  geminiApiDefaultModel: process.env.GEMINI_API_DEFAULT_MODEL ?? 'gemini-3-flash-preview',
   geminiApiBaseUrl: process.env.GEMINI_API_BASE_URL,
   apiTimeoutMs: Number(process.env.API_TIMEOUT_MS ?? 120000),
   // Other settings
@@ -77,5 +90,8 @@ export default registerAs<AppConfig>('app', () => ({
   defaultWorkspace: expandPath(
     process.env.DEFAULT_WORKSPACE ?? '~/llm-workspace',
   ),
+  allowedWorkspaces: parseList(process.env.ALLOWED_WORKSPACES).map(expandPath),
+  extraSubprocessEnv: parseList(process.env.EXTRA_SUBPROCESS_ENV),
   adminPasswordHash: process.env.ADMIN_PASSWORD_HASH ?? '',
+  dbPath: expandPath(process.env.DB_PATH ?? './data/runner.db'),
 }));

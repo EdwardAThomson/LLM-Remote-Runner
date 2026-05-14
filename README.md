@@ -83,6 +83,8 @@ claude   # first run will prompt for OAuth login
 
 The adapter runs `claude -p "<prompt>" --output-format json` and extracts the `result` field from the JSON envelope.
 
+> If `claude` errors with `claude native binary not installed`, run `./scripts/fix-claude.sh` to repair the install. The package's postinstall sometimes silently no-ops; see the [Troubleshooting](#per-backend-issues) section for what the script does and why.
+
 ### Gemini CLI (Google)
 
 ```bash
@@ -90,7 +92,9 @@ npm install -g @google/gemini-cli
 gemini   # first run will prompt for auth (OAuth or API key)
 ```
 
-The adapter runs `gemini -p "<prompt>" -m <model>`. The model is taken from `GEMINI_DEFAULT_MODEL` (defaults to `gemini-2.5-pro`) unless overridden per task.
+The adapter runs `gemini --skip-trust -p "<prompt>" -m <model>`. The model is taken from `GEMINI_DEFAULT_MODEL` (defaults to `gemini-3-flash-preview` — flash is the most reliable preview today; `gemini-3.1-pro-preview` is the newest pro variant but has been hitting capacity-exhausted 429s) unless overridden per task.
+
+`--skip-trust` is required for Gemini CLI 0.42+ — newer versions block headless runs unless the workspace is interactively "trusted" or this flag is passed. The gateway's workspace allowlist (see [docs/SECURITY.md](docs/SECURITY.md), F-1) already constrains where CLIs run, so opting out of the per-folder trust prompt is safe.
 
 ### API backends (OpenAI / Anthropic / Gemini)
 
@@ -243,7 +247,9 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `JWT_SECRET` | Secret for signing JWT tokens | - | Yes |
 | `JWT_ISSUER` | JWT token issuer | `codex-remote-runner` | No |
 | `ADMIN_PASSWORD_HASH` | Bcrypt hash of admin password | - | Yes |
-| `DEFAULT_WORKSPACE` | Default workspace directory | `~/llm-workspace` | Yes |
+| `DEFAULT_WORKSPACE` | Default workspace directory (always allowed) | `~/llm-workspace` | Yes |
+| `ALLOWED_WORKSPACES` | Comma-separated extra workspace roots. Tasks with a `cwd` outside these (or `DEFAULT_WORKSPACE`) are rejected. | - | No |
+| `EXTRA_SUBPROCESS_ENV` | Comma-separated env var names to forward to spawned CLIs in addition to the base allowlist (`PATH`, `HOME`, `USER`, `LANG`, proxy vars, etc.) | - | No |
 | `RATE_LIMIT_POINTS` | Max requests per duration | `60` | No |
 | `RATE_LIMIT_DURATION` | Rate limit window (seconds) | `60` | No |
 | `TASK_HEARTBEAT_MS` | SSE heartbeat interval | `15000` | No |
@@ -258,20 +264,20 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `CODEX_BIN_PATH` | Path to Codex binary | `codex` | No* |
 | `CLAUDE_BIN_PATH` | Path to Claude Code binary | `claude` | No* |
 | `GEMINI_BIN_PATH` | Path to Gemini CLI binary | `gemini` | No* |
-| `GEMINI_DEFAULT_MODEL` | Default model passed to Gemini CLI via `-m` | `gemini-2.5-pro` | No |
+| `GEMINI_DEFAULT_MODEL` | Default model passed to Gemini CLI via `-m` | `gemini-3-flash-preview` | No |
 
 **API Backend Keys & Models:**
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
 | `OPENAI_API_KEY` | OpenAI API key | - | No* |
-| `OPENAI_DEFAULT_MODEL` | Default OpenAI model | `gpt-4o` | No |
+| `OPENAI_DEFAULT_MODEL` | Default OpenAI model | `gpt-5.5` | No |
 | `OPENAI_BASE_URL` | Override OpenAI API base URL (for proxies / Azure-compat) | - | No |
 | `ANTHROPIC_API_KEY` | Anthropic API key | - | No* |
-| `ANTHROPIC_DEFAULT_MODEL` | Default Anthropic model | `claude-sonnet-4-20250514` | No |
+| `ANTHROPIC_DEFAULT_MODEL` | Default Anthropic model | `claude-sonnet-4-5-20250929` | No |
 | `ANTHROPIC_BASE_URL` | Override Anthropic API base URL | - | No |
 | `GEMINI_API_KEY` | Google Gemini API key | - | No* |
-| `GEMINI_API_DEFAULT_MODEL` | Default Gemini API model | `gemini-1.5-pro` | No |
+| `GEMINI_API_DEFAULT_MODEL` | Default Gemini API model | `gemini-3-flash-preview` | No |
 | `GEMINI_API_BASE_URL` | Override Gemini API base URL | - | No |
 
 *At least one backend (CLI or API) must be configured.
@@ -400,7 +406,26 @@ Or specify a different directory in the web UI workspace field.
 
 **Claude Code CLI** — if the task completes but the UI shows raw JSON like `{"result": "..."}`, the adapter's output parser didn't get JSON it could read; check that `claude --version` and `claude -p hi --output-format json` work directly. Long prompts can hit `ARG_MAX` on some platforms since prompts are passed via argv.
 
-**Gemini CLI** — `model not found`: set `GEMINI_DEFAULT_MODEL` to a model your account has access to, or pass `model` on the task. Auth issues: the CLI uses `~/.gemini/` for OAuth state; if you're running the gateway as a different user, that directory must be readable by them.
+If `claude` itself errors with `claude native binary not installed` (postinstall did not run / platform-native optional dep was omitted, or a previous install left the stub in place), use the bundled repair script:
+
+```bash
+./scripts/fix-claude.sh
+```
+
+The script locates your global `@anthropic-ai/claude-code` install, deletes the JS stub at `bin/claude.exe` (so the package's `install.cjs` can't silently no-op on it), re-runs the postinstall, and verifies that `bin/claude.exe` is now a real native binary (ELF on Linux, Mach-O on macOS, PE on Windows — the `.exe` filename is constant across platforms by design). Safe to re-run; if everything is already healthy it exits without doing anything.
+
+If you'd rather fix it by hand:
+
+```bash
+CLAUDE_PKG="$(npm root -g)/@anthropic-ai/claude-code"
+rm -f "$CLAUDE_PKG/bin/claude.exe"
+node "$CLAUDE_PKG/install.cjs"
+file "$CLAUDE_PKG/bin/claude.exe"   # should report ELF/Mach-O/PE, not ASCII
+```
+
+This issue commonly recurs with pnpm 11+, `npm install -g --omit=optional`, or any install that skipped scripts. Set `enable-pre-post-scripts=true` in `~/.npmrc` (npm) or `pnpm config set side-effects-cache false` to reduce how often it happens on future installs.
+
+**Gemini CLI** — `ModelNotFoundError` / `404`: set `GEMINI_DEFAULT_MODEL` to a model your account has access to (try `gemini-3-flash-preview` or `gemini-2.5-flash` if `gemini-3.1-pro-preview` returns 404), or pass `model` on the task. Confirmed working strings on CLI 0.42: `gemini-3.1-pro-preview`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemini-2.5-flash`. Auth issues: the CLI uses `~/.gemini/` for OAuth state; if you're running the gateway as a different user, that directory must be readable by them. If you see "not running in a trusted directory" you're on an older adapter — make sure `--skip-trust` is being passed (it should be automatic since this commit).
 
 **OpenAI / Anthropic / Gemini API** — `401` or `invalid api key` in the task output means the relevant `*_API_KEY` is missing or wrong. If you're behind a corporate proxy or hitting an Azure-compatible endpoint, set the matching `*_BASE_URL`.
 

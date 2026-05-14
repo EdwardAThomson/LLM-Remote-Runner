@@ -8,29 +8,20 @@ import { BaseApiAdapter } from './base-api.adapter';
 
 /**
  * OpenAI API adapter
- * Supports GPT-4, GPT-3.5-turbo, and other OpenAI models
  */
 export class OpenAiApiAdapter extends BaseApiAdapter {
   readonly backend = 'openai-api' as const;
   readonly displayName = 'OpenAI API';
-  
+
   private readonly baseUrl: string;
-  
+
   constructor(config: ApiConfig) {
     super(config);
     this.baseUrl = config.baseUrl ?? 'https://api.openai.com/v1';
   }
-  
+
   getAvailableModels(): string[] {
-    return [
-      'gpt-4o',
-      'gpt-4o-mini',
-      'gpt-4-turbo',
-      'gpt-4',
-      'gpt-3.5-turbo',
-      'o1-preview',
-      'o1-mini',
-    ];
+    return ['gpt-5.5', 'gpt-5.4', 'gpt-5.2'];
   }
   
   async complete(options: ApiRequestOptions): Promise<ApiResponse> {

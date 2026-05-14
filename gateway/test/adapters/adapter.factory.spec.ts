@@ -20,7 +20,7 @@ describe('AdapterFactory', () => {
         'app.codexBinPath': '/usr/local/bin/codex',
         'app.claudeBinPath': '/usr/local/bin/claude',
         'app.geminiBinPath': '/usr/local/bin/gemini',
-        'app.geminiDefaultModel': 'gemini-2.5-flash',
+        'app.geminiDefaultModel': 'gemini-3-flash-preview',
       }),
     );
 
@@ -39,14 +39,20 @@ describe('AdapterFactory', () => {
         'app.codexBinPath': 'codex',
         'app.claudeBinPath': 'claude',
         'app.geminiBinPath': 'gemini',
-        'app.geminiDefaultModel': 'gemini-2.5-flash',
+        'app.geminiDefaultModel': 'gemini-3-flash-preview',
       }),
     );
 
     const invocation = factory
       .getAdapter('gemini-cli')
       .buildCommand({ prompt: 'hi' });
-    expect(invocation.args).toEqual(['-p', 'hi', '-m', 'gemini-2.5-flash']);
+    expect(invocation.args).toEqual([
+      '--skip-trust',
+      '-p',
+      'hi',
+      '-m',
+      'gemini-3-flash-preview',
+    ]);
   });
 
   it('throws a descriptive error for unknown backends', () => {

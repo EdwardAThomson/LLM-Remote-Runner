@@ -23,6 +23,12 @@ describe('ClaudeCliAdapter', () => {
     ]);
   });
 
+  it('disables the Claude auto-updater via invocation env', () => {
+    const adapter = new ClaudeCliAdapter();
+    const invocation = adapter.buildCommand({ prompt: 'hi' });
+    expect(invocation.env?.DISABLE_AUTOUPDATER).toBe('1');
+  });
+
   describe('parseOutput', () => {
     const adapter = new ClaudeCliAdapter();
 

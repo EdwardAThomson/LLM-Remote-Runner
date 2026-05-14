@@ -4,6 +4,7 @@ import {
   Logger,
   MessageEvent,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ChildProcessWithoutNullStreams, spawn } from 'child_process';
@@ -16,31 +17,17 @@ import {
   CliAdapter,
 } from '../adapters';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { buildSubprocessEnv } from './subprocess-env';
+import { resolveAllowedCwd } from './workspace.validator';
+import { TasksRepository } from './tasks.repository';
+import {
+  TaskDetail,
+  TaskLogEvent,
+  TaskState,
+  TaskSummary,
+} from './task-types';
 
-export type TaskState = 'queued' | 'running' | 'completed' | 'error' | 'canceled';
-
-export interface TaskLogEvent {
-  line: string;
-  stream: 'stdout' | 'stderr';
-  ts: string;
-}
-
-export interface TaskSummary {
-  id: string;
-  prompt: string;
-  cwd?: string | null;
-  backend: AnyBackend;
-  model?: string | null;
-  state: TaskState;
-  createdAt: string;
-  updatedAt: string;
-  exitCode: number | null;
-  errorMessage: string | null;
-}
-
-export interface TaskDetail extends TaskSummary {
-  logs: TaskLogEvent[];
-}
+export { TaskDetail, TaskLogEvent, TaskState, TaskSummary } from './task-types';
 
 interface TaskRecord extends TaskDetail {
   process?: ChildProcessWithoutNullStreams;
@@ -61,7 +48,7 @@ interface TaskRecord extends TaskDetail {
 }
 
 @Injectable()
-export class TasksService {
+export class TasksService implements OnModuleInit {
   private readonly logger = new Logger(TasksService.name);
   private readonly tasks = new Map<string, TaskRecord>();
   private readonly heartbeatIntervalMs: number;
@@ -70,10 +57,21 @@ export class TasksService {
     private readonly configService: ConfigService,
     private readonly adapterFactory: AdapterFactory,
     private readonly apiAdapterFactory: ApiAdapterFactory,
+    private readonly tasksRepository: TasksRepository,
   ) {
     const interval =
       this.configService.get<number>('app.taskHeartbeatMs', 15000) ?? 15000;
     this.heartbeatIntervalMs = Math.max(0, interval);
+  }
+
+  onModuleInit(): void {
+    const now = new Date().toISOString();
+    const interrupted = this.tasksRepository.markInterruptedAsError(now);
+    if (interrupted.length > 0) {
+      this.logger.warn(
+        `Marked ${interrupted.length} interrupted task(s) as error on boot`,
+      );
+    }
   }
 
   /**
@@ -86,14 +84,26 @@ export class TasksService {
   async create(dto: CreateTaskDto): Promise<TaskSummary> {
     const id = randomUUID();
     const now = new Date().toISOString();
-    
-    // Use default workspace if no cwd provided
-    const defaultWorkspace = this.configService.get<string>('app.defaultWorkspace');
-    const cwd = dto.cwd ?? defaultWorkspace ?? null;
-    
+
     // Determine backend (use default if not specified)
     const defaultBackend = this.configService.get<AnyBackend>('app.defaultBackend', 'codex');
     const backend = dto.backend ?? defaultBackend;
+
+    // Resolve and validate the workspace before doing any other work. API
+    // backends do not spawn a subprocess, so cwd is informational only and we
+    // skip the filesystem check for them.
+    let cwd: string | null;
+    if (this.isApiBackend(backend)) {
+      cwd = dto.cwd?.trim() ? dto.cwd.trim() : null;
+    } else {
+      const defaultWorkspace = this.configService.get<string>('app.defaultWorkspace');
+      const allowedWorkspaces =
+        this.configService.get<string[]>('app.allowedWorkspaces', []) ?? [];
+      cwd = await resolveAllowedCwd(dto.cwd, {
+        defaultWorkspace: defaultWorkspace ?? '',
+        allowedWorkspaces,
+      });
+    }
     
     // Get adapter info based on backend type
     let cliAdapter: CliAdapter | undefined;
@@ -126,6 +136,7 @@ export class TasksService {
       finalized: false,
     };
     this.tasks.set(id, record);
+    this.tasksRepository.insert(this.toSummary(record));
 
     this.pushStatus(record, 'queued');
     
@@ -140,21 +151,29 @@ export class TasksService {
   }
 
   async findAll(): Promise<TaskSummary[]> {
-    return Array.from(this.tasks.values()).map((task) => this.toSummary(task));
+    return this.tasksRepository.listSummaries();
   }
 
   async findDetailOrFail(id: string): Promise<TaskDetail> {
-    const task = this.tasks.get(id);
-    if (!task) {
+    const live = this.tasks.get(id);
+    if (live) {
+      return this.toDetail(live);
+    }
+    const persisted = this.tasksRepository.findDetail(id);
+    if (!persisted) {
       throw new NotFoundException(`Task ${id} not found`);
     }
-    return this.toDetail(task);
+    return persisted;
   }
 
   async streamTask(id: string): Promise<ReplaySubject<MessageEvent>> {
     const task = this.tasks.get(id);
     if (!task) {
-      throw new NotFoundException(`Task ${id} not found`);
+      const persisted = this.tasksRepository.findDetail(id);
+      if (!persisted) {
+        throw new NotFoundException(`Task ${id} not found`);
+      }
+      return this.synthesizePersistedStream(persisted);
     }
 
     if (!task.finalized && task.stream.observers.length > 0) {
@@ -170,7 +189,16 @@ export class TasksService {
   ): Promise<TaskDetail> {
     const task = this.tasks.get(id);
     if (!task) {
-      throw new NotFoundException(`Task ${id} not found`);
+      const persisted = this.tasksRepository.findDetail(id);
+      if (!persisted) {
+        throw new NotFoundException(`Task ${id} not found`);
+      }
+      if (persisted.state === 'queued' || persisted.state === 'running') {
+        // Shouldn't happen under normal operation — boot hydration converts these
+        // to error. Treat as a no-op.
+        throw new BadRequestException(`Task ${id} is not active`);
+      }
+      return persisted;
     }
 
     if (task.finalized) {
@@ -226,11 +254,18 @@ export class TasksService {
       `Starting ${task.displayName} task ${task.id}: ${invocation.command} ${invocation.args.join(' ').substring(0, 100)}...`,
     );
 
+    const extraSubprocessEnv =
+      this.configService.get<string[]>('app.extraSubprocessEnv', []) ?? [];
+    const subprocessEnv = buildSubprocessEnv({
+      extra: extraSubprocessEnv,
+      adapterEnv: invocation.env,
+    });
+
     let child: ChildProcessWithoutNullStreams;
     try {
       child = spawn(invocation.command, invocation.args, {
         cwd, // Set working directory for CLIs that don't have a -C flag
-        env: { ...process.env, ...invocation.env },
+        env: subprocessEnv,
         stdio: 'pipe',
       });
     } catch (error) {
@@ -379,6 +414,13 @@ export class TasksService {
     const timestamp = new Date().toISOString();
     const entry: TaskLogEvent = { line, stream, ts: timestamp };
     task.logs.push(entry);
+    try {
+      this.tasksRepository.appendLog(task.id, entry);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to persist log for task ${task.id}: ${String(error)}`,
+      );
+    }
     task.stream.next({
       type: 'log',
       data: entry,
@@ -390,6 +432,20 @@ export class TasksService {
     task.errorMessage = error ?? null;
     const now = new Date();
     task.updatedAt = now.toISOString();
+
+    try {
+      this.tasksRepository.updateState(
+        task.id,
+        state,
+        task.errorMessage,
+        task.updatedAt,
+        task.exitCode,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to persist state for task ${task.id}: ${String(err)}`,
+      );
+    }
 
     const event = this.toStatusEvent(state, task.errorMessage ?? undefined, now);
     task.stream.next({
@@ -469,6 +525,29 @@ export class TasksService {
     }
 
     task.stream = stream;
+    return stream;
+  }
+
+  private synthesizePersistedStream(
+    detail: TaskDetail,
+  ): ReplaySubject<MessageEvent> {
+    const stream = new ReplaySubject<MessageEvent>();
+    stream.next({
+      type: 'status',
+      data: this.toStatusEvent(
+        detail.state,
+        detail.errorMessage ?? undefined,
+        new Date(detail.updatedAt),
+      ),
+    });
+    for (const log of detail.logs) {
+      stream.next({ type: 'log', data: log });
+    }
+    stream.next({
+      type: 'done',
+      data: { exit_code: detail.exitCode ?? -1, state: detail.state },
+    });
+    stream.complete();
     return stream;
   }
 

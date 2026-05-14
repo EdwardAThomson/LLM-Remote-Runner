@@ -55,7 +55,7 @@ export class AdapterFactory {
       binPath: this.configService.get<string>('app.geminiBinPath', 'gemini'),
       defaultModel: this.configService.get<string>(
         'app.geminiDefaultModel',
-        'gemini-2.5-pro',
+        'gemini-3-flash-preview',
       ),
       defaultTimeoutMs: 180000,
     };

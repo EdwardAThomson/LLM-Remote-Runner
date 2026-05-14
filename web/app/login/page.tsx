@@ -29,7 +29,7 @@ export default function LoginPage() {
   return (
     <div className="login-container">
       <div className="login-card">
-        <h1 className="login-title">Codex Remote Runner</h1>
+        <h1 className="login-title">LLM Remote Runner</h1>
         <p className="login-subtitle">Sign in to continue</p>
 
         <form onSubmit={handleSubmit} className="login-form">

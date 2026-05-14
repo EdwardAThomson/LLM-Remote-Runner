@@ -20,13 +20,18 @@ So the realistic adversary is **anyone who can obtain the admin password or a li
 
 ## Findings
 
-### F-1 — Arbitrary file-system access via `cwd` (high)
+### F-1 — Arbitrary file-system access via `cwd` (high) — ✅ resolved
 
-**Where:** [gateway/src/tasks/dto/create-task.dto.ts:24-25](../gateway/src/tasks/dto/create-task.dto.ts#L24-L25), [gateway/src/tasks/tasks.service.ts:92](../gateway/src/tasks/tasks.service.ts#L92)
+**Where:** [gateway/src/tasks/workspace.validator.ts](../gateway/src/tasks/workspace.validator.ts), called from [gateway/src/tasks/tasks.service.ts](../gateway/src/tasks/tasks.service.ts) in `create()`.
 
-`cwd` is accepted as an unrestricted string and passed straight to `spawn` and `-C` on Codex. There is no allowlist, no traversal check, no chroot. An authenticated user can target any directory readable by the gateway process — including dotfiles, other projects, mounted secrets.
+Resolved by introducing a closed-by-default workspace allowlist. Every task creation now resolves the requested `cwd` to an absolute path, canonicalizes both the target and the allowlist entries via `fs.realpath`, and rejects with `400 BadRequest` unless the canonical target equals or is a descendant of one of:
 
-**Mitigations to consider:** validate against a configured allowlist of workspace roots (e.g. `ALLOWED_WORKSPACES` env var), canonicalize the path with `fs.realpath`, and reject if it escapes the allowed prefix.
+- `DEFAULT_WORKSPACE` (always implicitly allowed)
+- Any path in `ALLOWED_WORKSPACES` (comma-separated env var, optional)
+
+Symlink escapes are caught because both sides are realpath'd before comparison; `..` traversal is caught because `path.resolve` is applied first. Verified by [gateway/test/tasks/workspace.validator.spec.ts](../gateway/test/tasks/workspace.validator.spec.ts).
+
+API backends do not spawn a subprocess, so `cwd` is informational only for them and bypasses the filesystem check.
 
 ### F-2 — Hardcoded `--full-auto` on Codex (high)
 
@@ -36,17 +41,20 @@ Codex is invoked with `--full-auto`, which means the model runs shell commands a
 
 **Mitigations to consider:** Phase 7 in the roadmap is dedicated to this. Until then, only deploy on hosts where the gateway user has narrow permissions, and prefer the Claude or API backends if the use case allows.
 
-### F-3 — All `process.env` is forwarded to spawned CLIs (medium)
+### F-3 — All `process.env` is forwarded to spawned CLIs (medium) — ✅ resolved
 
-**Where:** [gateway/src/tasks/tasks.service.ts:233](../gateway/src/tasks/tasks.service.ts#L233)
+**Where:** [gateway/src/tasks/subprocess-env.ts](../gateway/src/tasks/subprocess-env.ts), called from [gateway/src/tasks/tasks.service.ts](../gateway/src/tasks/tasks.service.ts) before each `spawn`.
 
-```ts
-env: { ...process.env, ...invocation.env }
+Resolved by replacing `{ ...process.env, ...invocation.env }` with a curated allowlist. The base allowlist is:
+
+```
+PATH, HOME, USER, LOGNAME, LANG, LC_ALL, LC_CTYPE, TERM, TMPDIR, SHELL,
+HTTPS_PROXY, HTTP_PROXY, NO_PROXY (and their lowercase variants)
 ```
 
-This means the spawned `codex`/`claude`/`gemini` processes inherit every env var the gateway sees, including `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, and any API keys for backends the CLI is **not** using. If any CLI logs its environment on crash or sends it to telemetry, those secrets leak.
+Anything else — including `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, and every `*_API_KEY` — is now stripped before the subprocess starts. Adapters can still inject required env via `invocation.env` (winning over the source) for cases where a CLI needs a specific credential. Operators with a custom env var to forward (e.g. corporate proxy helpers, `NODE_OPTIONS`) set the `EXTRA_SUBPROCESS_ENV` comma-separated allowlist.
 
-**Mitigations to consider:** build a curated env per adapter (PATH, HOME, LANG, plus anything the CLI explicitly needs), and let each adapter declare its required vars in `invocation.env`.
+Verified by [gateway/test/tasks/subprocess-env.spec.ts](../gateway/test/tasks/subprocess-env.spec.ts) and an end-to-end assertion in [gateway/test/tasks.service.spec.ts](../gateway/test/tasks.service.spec.ts).
 
 ### F-4 — Prompt content is logged at INFO level (medium, privacy/info-disclosure)
 
@@ -118,9 +126,9 @@ The streaming path appends raw stdout lines as they arrive; `parseOutput` (which
 
 In priority order for a hardening pass before deploying anywhere shared:
 
-1. Workspace allowlist + path canonicalization (F-1).
+1. ~~Workspace allowlist + path canonicalization (F-1)~~ — done.
 2. Make `--full-auto` opt-in (Phase 7 of [ROADMAP.md](../ROADMAP.md)) (F-2).
-3. Curated subprocess env (F-3).
+3. ~~Curated subprocess env (F-3)~~ — done.
 4. Restrict CORS origins via env var (F-6).
 5. Drop prompt content from INFO-level logs (F-4).
 6. Bound in-memory task storage and add per-session SSE cap (F-7, F-8).

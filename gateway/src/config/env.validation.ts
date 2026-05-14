@@ -10,7 +10,7 @@ export const envValidationSchema = Joi.object({
   GEMINI_BIN_PATH: Joi.string().default('gemini'),
 
   // Default model for Gemini CLI
-  GEMINI_DEFAULT_MODEL: Joi.string().default('gemini-2.5-pro'),
+  GEMINI_DEFAULT_MODEL: Joi.string().default('gemini-3-flash-preview'),
 
   // Default backend for new tasks (CLI or API)
   DEFAULT_BACKEND: Joi.string()
@@ -19,15 +19,15 @@ export const envValidationSchema = Joi.object({
 
   // API keys (optional - leave empty to disable that provider)
   OPENAI_API_KEY: Joi.string().allow('').default(''),
-  OPENAI_DEFAULT_MODEL: Joi.string().default('gpt-4o'),
+  OPENAI_DEFAULT_MODEL: Joi.string().default('gpt-5.5'),
   OPENAI_BASE_URL: Joi.string().uri().allow(''),
 
   ANTHROPIC_API_KEY: Joi.string().allow('').default(''),
-  ANTHROPIC_DEFAULT_MODEL: Joi.string().default('claude-sonnet-4-20250514'),
+  ANTHROPIC_DEFAULT_MODEL: Joi.string().default('claude-sonnet-4-5-20250929'),
   ANTHROPIC_BASE_URL: Joi.string().uri().allow(''),
 
   GEMINI_API_KEY: Joi.string().allow('').default(''),
-  GEMINI_API_DEFAULT_MODEL: Joi.string().default('gemini-1.5-pro'),
+  GEMINI_API_DEFAULT_MODEL: Joi.string().default('gemini-3-flash-preview'),
   GEMINI_API_BASE_URL: Joi.string().uri().allow(''),
 
   API_TIMEOUT_MS: Joi.number().integer().positive().default(120000),
@@ -45,4 +45,18 @@ export const envValidationSchema = Joi.object({
   LOG_LEVEL: Joi.string()
     .valid('fatal', 'error', 'warn', 'log', 'debug', 'verbose')
     .default('log'),
+
+  // Workspace allowlist (F-1)
+  // Comma-separated absolute paths. DEFAULT_WORKSPACE is always allowed.
+  // When set, the requested cwd must be the allowlisted path or a descendant.
+  ALLOWED_WORKSPACES: Joi.string().allow('').default(''),
+
+  // Extra env vars to forward to spawned CLIs (F-3)
+  // Comma-separated variable names. The base allowlist already covers PATH,
+  // HOME, USER, LOGNAME, LANG, LC_ALL, TERM, TMPDIR, SHELL,
+  // HTTPS_PROXY, HTTP_PROXY, NO_PROXY.
+  EXTRA_SUBPROCESS_ENV: Joi.string().allow('').default(''),
+
+  // SQLite database file path (created on first run if missing).
+  DB_PATH: Joi.string().default('./data/runner.db'),
 });
