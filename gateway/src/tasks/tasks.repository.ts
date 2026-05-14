@@ -94,10 +94,35 @@ export class TasksRepository {
     return { ...summary, logs };
   }
 
-  listSummaries(): TaskSummary[] {
+  listSummaries(opts: {
+    limit: number;
+    cursor?: { createdAt: string; id: string };
+    backend?: string;
+    state?: string;
+  }): TaskSummary[] {
+    const where: string[] = [];
+    const params: unknown[] = [];
+
+    if (opts.cursor) {
+      where.push('(created_at < ? OR (created_at = ? AND id < ?))');
+      params.push(opts.cursor.createdAt, opts.cursor.createdAt, opts.cursor.id);
+    }
+    if (opts.backend) {
+      where.push('backend = ?');
+      params.push(opts.backend);
+    }
+    if (opts.state) {
+      where.push('state = ?');
+      params.push(opts.state);
+    }
+
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const sql = `SELECT * FROM tasks ${whereSql} ORDER BY created_at DESC, id DESC LIMIT ?`;
+    params.push(opts.limit);
+
     return this.databaseService.db
-      .prepare<[], TaskRow>('SELECT * FROM tasks ORDER BY created_at DESC')
-      .all()
+      .prepare<unknown[], TaskRow>(sql)
+      .all(...params)
       .map((row) => this.rowToSummary(row));
   }
 

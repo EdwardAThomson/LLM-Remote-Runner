@@ -34,4 +34,20 @@ const m001_initial: Migration = {
   `,
 };
 
-export const migrations: Migration[] = [m001_initial];
+const m002_api_tokens: Migration = {
+  id: '002_api_tokens',
+  sql: `
+    CREATE TABLE IF NOT EXISTS api_tokens (
+      id            TEXT PRIMARY KEY,
+      name          TEXT NOT NULL,
+      token_hash    TEXT NOT NULL,
+      created_at    TEXT NOT NULL,
+      last_used_at  TEXT,
+      revoked_at    TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_api_tokens_active
+      ON api_tokens(revoked_at);
+  `,
+};
+
+export const migrations: Migration[] = [m001_initial, m002_api_tokens];

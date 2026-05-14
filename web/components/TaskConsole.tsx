@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
   AnyBackend,
@@ -88,9 +89,23 @@ export default function TaskConsole() {
   const streamPanelRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
 
-  // Load stored backend preference on mount
+  const searchParams = useSearchParams();
+
+  // Load stored backend preference on mount, then layer query params on top
+  // (for the "Run Again" flow from a task detail page).
   useEffect(() => {
     setBackend(getStoredBackend());
+    const qPrompt = searchParams.get('prompt');
+    const qBackend = searchParams.get('backend') as AnyBackend | null;
+    const qModel = searchParams.get('model');
+    const qCwd = searchParams.get('cwd');
+    if (qPrompt) setPrompt(qPrompt);
+    if (qBackend && BACKENDS.some((b) => b.value === qBackend)) {
+      setBackend(qBackend);
+    }
+    if (qModel) setModel(qModel);
+    if (qCwd) setCwd(qCwd);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Save backend preference when changed

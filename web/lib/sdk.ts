@@ -5,6 +5,11 @@ import {
   CreateTaskOptions,
   CreateTaskPayload,
   CreateTaskResponse,
+  deleteTask as sdkDeleteTask,
+  getTask as sdkGetTask,
+  listTasks as sdkListTasks,
+  ListTasksQuery,
+  ListTasksResponse,
   streamTask as sdkStreamTask,
   StreamTaskHandlers,
   StreamTaskOptions,
@@ -12,11 +17,22 @@ import {
   TaskState,
   TaskStatusEvent,
   TaskStreamEvent,
+  TaskSummary,
 } from '@codex/sdk';
 import { getToken } from './auth';
 
 // Re-export types for convenience
-export type { AnyBackend, TaskState, TaskStatusEvent, TaskStreamEvent, CreateTaskResponse };
+export type {
+  AnyBackend,
+  TaskState,
+  TaskStatusEvent,
+  TaskStreamEvent,
+  CreateTaskResponse,
+  TaskDetail,
+  TaskSummary,
+  ListTasksQuery,
+  ListTasksResponse,
+};
 
 function getGatewayBaseUrl(): string {
   return process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3000';
@@ -54,6 +70,36 @@ export async function cancelTask(
   options?: Omit<CreateTaskOptions, 'token'>,
 ): Promise<TaskDetail> {
   return sdkCancelTask(getGatewayBaseUrl(), taskId, reason, {
+    ...options,
+    token: getAuthToken(),
+  });
+}
+
+export async function listTasks(
+  query: ListTasksQuery = {},
+  options?: Omit<CreateTaskOptions, 'token'>,
+): Promise<ListTasksResponse> {
+  return sdkListTasks(getGatewayBaseUrl(), query, {
+    ...options,
+    token: getAuthToken(),
+  });
+}
+
+export async function getTask(
+  taskId: string,
+  options?: Omit<CreateTaskOptions, 'token'>,
+): Promise<TaskDetail> {
+  return sdkGetTask(getGatewayBaseUrl(), taskId, {
+    ...options,
+    token: getAuthToken(),
+  });
+}
+
+export async function deleteTask(
+  taskId: string,
+  options?: Omit<CreateTaskOptions, 'token'>,
+): Promise<void> {
+  return sdkDeleteTask(getGatewayBaseUrl(), taskId, {
     ...options,
     token: getAuthToken(),
   });

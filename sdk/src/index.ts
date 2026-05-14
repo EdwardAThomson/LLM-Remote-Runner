@@ -58,6 +58,18 @@ export interface CreateTaskResponse {
   task?: TaskSummary;
 }
 
+export interface ListTasksQuery {
+  limit?: number;
+  cursor?: string;
+  backend?: AnyBackend;
+  state?: TaskState;
+}
+
+export interface ListTasksResponse {
+  items: TaskSummary[];
+  next_cursor: string | null;
+}
+
 export type TaskStreamEvent =
   | { type: 'status'; data: TaskStatusEvent }
   | { type: 'log'; data: TaskLogEvent }
@@ -195,6 +207,73 @@ export function streamTask(
   return () => {
     eventSource.close();
   };
+}
+
+export async function listTasks(
+  baseUrl: string,
+  query: ListTasksQuery = {},
+  options: CreateTaskOptions = {},
+): Promise<ListTasksResponse> {
+  const url = new URL('/api/tasks', baseUrl);
+  if (query.limit !== undefined) url.searchParams.set('limit', String(query.limit));
+  if (query.cursor) url.searchParams.set('cursor', query.cursor);
+  if (query.backend) url.searchParams.set('backend', query.backend);
+  if (query.state) url.searchParams.set('state', query.state);
+
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers,
+    signal: options.signal,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to list tasks (${response.status}): ${text}`);
+  }
+  return (await response.json()) as ListTasksResponse;
+}
+
+export async function getTask(
+  baseUrl: string,
+  taskId: string,
+  options: CreateTaskOptions = {},
+): Promise<TaskDetail> {
+  const url = new URL(`/api/tasks/${taskId}`, baseUrl);
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers,
+    signal: options.signal,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to get task (${response.status}): ${text}`);
+  }
+  return (await response.json()) as TaskDetail;
+}
+
+export async function deleteTask(
+  baseUrl: string,
+  taskId: string,
+  options: CreateTaskOptions = {},
+): Promise<void> {
+  const url = new URL(`/api/tasks/${taskId}`, baseUrl);
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+
+  const response = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers,
+    signal: options.signal,
+  });
+  if (!response.ok && response.status !== 204) {
+    const text = await response.text();
+    throw new Error(`Failed to delete task (${response.status}): ${text}`);
+  }
 }
 
 export async function cancelTask(

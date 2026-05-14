@@ -1,10 +1,10 @@
 import AuthGuard from '../components/AuthGuard';
-import TaskConsole from '../components/TaskConsole';
+import Dashboard from '../components/Dashboard';
 
 export default function HomePage() {
   return (
     <AuthGuard>
-      <TaskConsole />
+      <Dashboard />
     </AuthGuard>
   );
 }

@@ -150,8 +150,46 @@ export class TasksService implements OnModuleInit {
     return this.toSummary(record);
   }
 
-  async findAll(): Promise<TaskSummary[]> {
-    return this.tasksRepository.listSummaries();
+  async findAll(opts: {
+    limit?: number;
+    cursor?: string;
+    backend?: string;
+    state?: string;
+  } = {}): Promise<{ items: TaskSummary[]; next_cursor: string | null }> {
+    const limit = clamp(opts.limit ?? 50, 1, 200);
+    const cursor = opts.cursor ? decodeCursor(opts.cursor) : undefined;
+
+    const rows = this.tasksRepository.listSummaries({
+      limit: limit + 1,
+      cursor: cursor ?? undefined,
+      backend: opts.backend,
+      state: opts.state,
+    });
+
+    let next_cursor: string | null = null;
+    let items = rows;
+    if (rows.length > limit) {
+      items = rows.slice(0, limit);
+      const last = items[items.length - 1];
+      next_cursor = encodeCursor({ createdAt: last.createdAt, id: last.id });
+    }
+
+    return { items, next_cursor };
+  }
+
+  async deleteTaskById(id: string): Promise<void> {
+    const live = this.tasks.get(id);
+    if (live && !live.finalized) {
+      throw new BadRequestException(
+        `Task ${id} is still running. Cancel it before deleting.`,
+      );
+    }
+    const persisted = this.tasksRepository.findSummary(id);
+    if (!persisted && !live) {
+      throw new NotFoundException(`Task ${id} not found`);
+    }
+    this.tasksRepository.deleteTask(id);
+    this.tasks.delete(id);
   }
 
   async findDetailOrFail(id: string): Promise<TaskDetail> {
@@ -603,4 +641,31 @@ export class TasksService implements OnModuleInit {
       task.heartbeat = undefined;
     }
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, Math.floor(value)));
+}
+
+function encodeCursor(cursor: { createdAt: string; id: string }): string {
+  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url');
+}
+
+function decodeCursor(
+  raw: string,
+): { createdAt: string; id: string } | undefined {
+  try {
+    const decoded = Buffer.from(raw, 'base64url').toString('utf8');
+    const parsed = JSON.parse(decoded);
+    if (
+      typeof parsed?.createdAt === 'string' &&
+      typeof parsed?.id === 'string'
+    ) {
+      return { createdAt: parsed.createdAt, id: parsed.id };
+    }
+  } catch {
+    // fall through
+  }
+  return undefined;
 }

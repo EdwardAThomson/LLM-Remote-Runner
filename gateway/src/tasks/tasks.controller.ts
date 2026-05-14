@@ -1,19 +1,22 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
+  Query,
   Sse,
-  UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { ListTasksQueryDto } from './dto/list-tasks-query.dto';
 import { TasksService } from './tasks.service';
 
+// Auth is enforced by the global JwtAuthGuard (jwt OR api-token).
 @Controller('tasks')
-@UseGuards(JwtAuthGuard)
 export class TasksController {
   constructor(private readonly tasksService: TasksService) {}
 
@@ -27,8 +30,13 @@ export class TasksController {
   }
 
   @Get()
-  findAll() {
-    return this.tasksService.findAll();
+  findAll(@Query() query: ListTasksQueryDto) {
+    return this.tasksService.findAll({
+      limit: query.limit,
+      cursor: query.cursor,
+      backend: query.backend,
+      state: query.state,
+    });
   }
 
   @Get(':id')
@@ -45,6 +53,12 @@ export class TasksController {
       id,
       reason?.trim() ? reason.trim() : 'Task canceled by user',
     );
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string) {
+    await this.tasksService.deleteTaskById(id);
   }
 
   @Sse(':id/stream')

@@ -66,25 +66,57 @@ CREATE INDEX idx_task_logs_task ON task_logs(task_id, id);
 Smallest path to a working dashboard. Confirms the UX before we invest in conversations.
 
 ### A.1 Gateway API
-- [ ] Add pagination to `GET /api/tasks`: query params `limit` (default 50, max 200), `cursor` (opaque, encodes `created_at`+`id`). Return `{ items, next_cursor }`.
-- [ ] Add filters: `?backend=`, `?state=`. Search (`?q=`) on prompt — defer to Phase A.4 if it complicates indexing.
-- [ ] Add `DELETE /api/tasks/:id` for housekeeping. Refuses while task is running.
+- [x] Pagination on `GET /api/tasks`: `limit` (1–200, default 50), opaque base64url `cursor` encoding `{createdAt,id}`. Returns `{ items, next_cursor }`. See [tasks.controller.ts](../gateway/src/tasks/tasks.controller.ts) + [tasks.repository.ts](../gateway/src/tasks/tasks.repository.ts).
+- [x] Filters `?backend=` and `?state=` validated via [list-tasks-query.dto.ts](../gateway/src/tasks/dto/list-tasks-query.dto.ts). (Prompt search `?q=` still pending — see A.4.)
+- [x] `DELETE /api/tasks/:id` ([tasks.controller.ts](../gateway/src/tasks/tasks.controller.ts)) — 204 No Content; throws `BadRequestException` if task is still queued/running.
 
 ### A.2 SDK
-- [ ] Export `listTasks({ limit, cursor, backend, state })` → `{ items: TaskSummary[], next_cursor }`.
-- [ ] Export `getTask(id)` → `TaskDetail` (includes logs).
-- [ ] Export `deleteTask(id)`.
+- [x] `listTasks({ limit, cursor, backend, state })` → `{ items, next_cursor }` in [sdk/src/index.ts](../sdk/src/index.ts).
+- [x] `getTask(id)` → `TaskDetail` (includes logs).
+- [x] `deleteTask(id)`.
+- [x] Web wrapper [web/lib/sdk.ts](../web/lib/sdk.ts) re-exports all three with cookie-based JWT.
 
 ### A.3 Web routing
-- [ ] Move TaskConsole from `/` to `/tasks/new`.
-- [ ] New `/` route: dashboard page with table. Columns: created (relative time), backend, model, prompt (truncated, hover-for-full), state (badge), duration. Row click → `/tasks/[id]`.
-- [ ] New `/tasks/[id]` route: shows full prompt + metadata, replays stored logs via `getTask`, attaches to SSE if `state === running`. Cancel button. "Run again" button → seeds `/tasks/new` with the same prompt+backend+model.
-- [ ] Update `Header.tsx` with nav: Dashboard / New task.
+- [x] TaskConsole moved to `/tasks/new` ([web/app/tasks/new/page.tsx](../web/app/tasks/new/page.tsx)). Honors `?prompt=&backend=&model=&cwd=` query params for the "Run Again" handoff.
+- [x] Dashboard at `/` ([web/components/Dashboard.tsx](../web/components/Dashboard.tsx)) with table (created/backend/model/prompt/state badge/duration), backend + state filters, "Load more" via cursor, modal-driven delete. Note: today only the Created timestamp links to the detail page — whole-row click is a nice-to-have left for later if you want it.
+- [x] `/tasks/[id]` ([web/components/TaskDetail.tsx](../web/components/TaskDetail.tsx)): replays stored logs via `getTask`, attaches to SSE if `state === queued|running`, Cancel + Run-Again + Refresh actions.
+- [x] `Header.tsx` nav with Dashboard / New Task links and active-state highlighting.
 
 ### A.4 Polish (after the table works)
 - [ ] Prompt search (`q=`) — SQLite `LIKE %q%` on prompt is fine at our scale; FTS5 only if needed.
 - [ ] Auto-refresh dashboard (poll every ~10s or use SSE summary stream — defer; polling is fine for v1).
-- [ ] Empty state with "Run your first task" CTA.
+- [x] Empty state with "Run your first task" CTA (dashed-border card with primary-button link).
+- [x] Delete confirmation modal (replaces the browser `confirm()` prompt).
+
+---
+
+## Phase A.5 — Programmatic API for service-to-service use
+
+The gateway is already an HTTP API, but the auth model (password → short-lived JWT) and lack of completion callbacks make it awkward for non-interactive callers. This phase makes the existing surface usable by other apps without changing what the dashboard does.
+
+### A.5.1 API tokens (machine credentials)
+- [x] Schema: `api_tokens` table via [migration 002](../gateway/src/db/migrations.ts) — `id`, `name`, `token_hash` (bcrypt), `created_at`, `last_used_at`, `revoked_at`. Token format: `rrt_<id>_<secret>` where the 16-char `id` doubles as a non-secret lookup key and only the secret is bcrypt-compared (avoids scanning every row).
+- [x] [`ApiTokenStrategy`](../gateway/src/auth/api-tokens/api-token.strategy.ts) (Passport custom) plus a multi-strategy global [`JwtAuthGuard`](../gateway/src/auth/jwt.guard.ts) (`AuthGuard(['jwt', 'api-token'])`). Principal set as `{ type: 'token', tokenId, name }` so callers are distinguishable. Tasks controller drops its own controller-level JWT guard and relies on the global one.
+- [x] Endpoints in [`ApiTokensController`](../gateway/src/auth/api-tokens/api-tokens.controller.ts): `POST /api/tokens` (plaintext returned **once**), `GET /api/tokens`, `DELETE /api/tokens/:id`. All JWT-only via the strict `JwtAuthGuard` from `jwt-auth.guard.ts` layered on top of the global one — API-token callers can't mint or revoke tokens.
+- [x] [`/settings/tokens`](../web/app/settings/tokens/page.tsx) UI ([`TokensSettings`](../web/components/TokensSettings.tsx)): list with name/created/last-used/status, create form, revoke confirmation modal, plaintext-once reveal modal with copy button.
+- [x] **Verified end-to-end:** valid token → 200 on `/api/tasks` and `last_used_at` updates; token on `/api/tokens` → 401; wrong secret → 401; revoked token → 401.
+
+### A.5.2 Webhooks
+- [ ] Optional `webhook_url` and `webhook_secret` fields on `CreateTaskDto`. Persist alongside the task row (add columns in a new migration).
+- [ ] On task finalization (`completed`/`error`/`canceled`), POST `{ task_id, state, exit_code, error_message }` to the webhook. Sign with HMAC-SHA256 over the JSON body using `webhook_secret`, header `X-Runner-Signature: sha256=<hex>`.
+- [ ] Retry policy: 3 attempts with exponential backoff (1s/5s/30s). Log failures, don't block task finalization on them. Store `webhook_last_status` + `webhook_last_attempt_at` on the row.
+- [ ] **Open question**: do we need a "delivery log" table for debugging, or is one final status enough? Default: one final status; add a table only if users ask for retry visibility.
+
+### A.5.3 OpenAPI + CORS
+- [ ] Add `@nestjs/swagger`; expose `/api/docs` (JSON + Swagger UI). Behind auth or public? Default: JSON public, UI behind auth.
+- [ ] Annotate `tasks` controller + DTOs so the spec is real, not auto-generated junk.
+- [ ] Add CORS allowlist via `CORS_ORIGINS` env var (comma-separated). Default empty = no cross-origin. The web app at `localhost:3001` and the production web origin go in here.
+
+### A.5.4 Rate limiting per principal
+- [ ] Current throttler is global. Switch to per-principal (per-JWT-user or per-token-id) so a noisy service doesn't starve the dashboard. Use `@nestjs/throttler`'s `getTracker()`.
+
+### A.5.5 Docs
+- [ ] New `docs/api.md`: quickstart for service integrations — minting a token, creating a task with a webhook, verifying the signature, polling vs. SSE.
 
 ---
 
@@ -158,7 +190,8 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 
 ## Open questions
 
-1. **Log retention**: do we cap logs per task (truncate after N lines / N MB)? Long-running tasks could produce huge transcripts.
-2. **Conversation forking**: when the user edits an earlier message, do we branch (preserve original) or overwrite? Branching is more powerful but UI-heavier — start with overwrite.
-3. **Transcript size for CLI adapters**: at some point the serialized prompt will hit context limits. Do we silently truncate, or surface a warning in the UI?
-4. **System prompts per conversation vs per task**: stored on the conversation row sounds right, but worth confirming before B.1 ships.
+1. **Log retention** (Phase 0.3): do we cap logs per task (truncate after N lines / N MB)? Long-running tasks could produce huge transcripts.
+2. **Conversation forking** (Phase B.5): when the user edits an earlier message, do we branch (preserve original) or overwrite? Start with overwrite.
+3. **Transcript size for CLI adapters** (Phase B.2): at some point the serialized prompt will hit context limits. Truncate silently, or surface a warning?
+4. **System prompts per conversation vs per task** (Phase B.2): stored on the conversation row sounds right, but worth confirming before B.1 ships.
+5. **Webhook delivery log** (Phase A.5.2): keep only last delivery status per task, or persist every attempt for debugging? Start with last-status; add a table only if users ask.
