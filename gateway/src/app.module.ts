@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import {
-  ThrottlerGuard,
   ThrottlerModule,
   ThrottlerModuleOptions,
 } from '@nestjs/throttler';
@@ -13,6 +12,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { AuthModule } from './auth/auth.module';
 import { ObservabilityModule } from './observability/observability.module';
 import { JwtAuthGuard } from './auth/jwt.guard';
+import { PrincipalThrottlerGuard } from './throttler/principal-throttler.guard';
 
 @Module({
   imports: [
@@ -24,10 +24,12 @@ import { JwtAuthGuard } from './auth/jwt.guard';
     ConfigModule.forFeature(appConfig),
     ThrottlerModule.forRootAsync({
       inject: [ConfigService],
+      // RATE_LIMIT_DURATION is configured in seconds for readability; the
+      // throttler expects milliseconds (semantics changed in @nestjs/throttler v5).
       useFactory: (config: ConfigService): ThrottlerModuleOptions => ({
         throttlers: [
           {
-            ttl: config.get<number>('app.rateLimitDuration', 60),
+            ttl: (config.get<number>('app.rateLimitDuration', 60) ?? 60) * 1000,
             limit: config.get<number>('app.rateLimitPoints', 60),
           },
         ],
@@ -45,7 +47,7 @@ import { JwtAuthGuard } from './auth/jwt.guard';
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: PrincipalThrottlerGuard,
     },
   ],
 })

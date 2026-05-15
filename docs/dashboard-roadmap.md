@@ -114,7 +114,8 @@ The gateway is already an HTTP API, but the auth model (password → short-lived
 - [x] CORS allowlist via `CORS_ORIGINS` env var (comma-separated). Empty = no cross-origin allowed. Configured in [app.config.ts](../gateway/src/config/app.config.ts) + [env.validation.ts](../gateway/src/config/env.validation.ts); `.env` and `.env.example` updated. Verified: allowed origin gets `Access-Control-Allow-Origin` header echoed back; disallowed origins don't.
 
 ### A.5.4 Rate limiting per principal
-- [ ] Current throttler is global. Switch to per-principal (per-JWT-user or per-token-id) so a noisy service doesn't starve the dashboard. Use `@nestjs/throttler`'s `getTracker()`.
+- [x] [`PrincipalThrottlerGuard`](../gateway/src/throttler/principal-throttler.guard.ts) overrides `getTracker()` to key on the authenticated principal — `token:<id>` for API tokens, `user:<sub>` for JWTs, falling back to `ip:<addr>` for unauthenticated (login) requests. Replaces the default `ThrottlerGuard` as the global APP_GUARD. Verified: TOKEN_A hits 60/60s and 429s on request 61; TOKEN_B's bucket is unaffected.
+- [x] Side-fix: `@nestjs/throttler@5` switched `ttl` from seconds → ms; `RATE_LIMIT_DURATION` is configured in seconds for readability and now multiplied by 1000 in the module factory. Without this the previous 60-second limit was effectively unbounded.
 
 ### A.5.5 Docs
 - [ ] New `docs/api.md`: quickstart for service integrations — minting a token, creating a task with a webhook, verifying the signature, polling vs. SSE.
