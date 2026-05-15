@@ -1,14 +1,11 @@
-'use client';
-
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { Link, useLocation } from 'react-router-dom';
 import { logout } from '../lib/auth';
 
 export default function Header() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const isDashboard = pathname === '/';
-  const isNewTask = pathname?.startsWith('/tasks/new');
-  const isSettings = pathname?.startsWith('/settings');
+  const isNewTask = pathname.startsWith('/tasks/new');
+  const isSettings = pathname.startsWith('/settings');
 
   return (
     <header className="app-header">
@@ -18,19 +15,19 @@ export default function Header() {
       </div>
       <nav className="app-nav">
         <Link
-          href="/"
+          to="/"
           className={`nav-link${isDashboard ? ' nav-link-active' : ''}`}
         >
           Dashboard
         </Link>
         <Link
-          href="/tasks/new"
+          to="/tasks/new"
           className={`nav-link${isNewTask ? ' nav-link-active' : ''}`}
         >
           New Task
         </Link>
         <Link
-          href="/settings/tokens"
+          to="/settings/tokens"
           className={`nav-link${isSettings ? ' nav-link-active' : ''}`}
         >
           Settings

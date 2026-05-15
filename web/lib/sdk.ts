@@ -35,7 +35,7 @@ export type {
 };
 
 function getGatewayBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3000';
+  return import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:3000';
 }
 
 function getAuthToken(): string | undefined {

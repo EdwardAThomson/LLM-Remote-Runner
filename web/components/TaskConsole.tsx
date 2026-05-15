@@ -1,7 +1,5 @@
-'use client';
-
-import { useSearchParams } from 'next/navigation';
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   AnyBackend,
   cancelTask,
@@ -89,7 +87,7 @@ export default function TaskConsole() {
   const streamPanelRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
 
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
 
   // Load stored backend preference on mount, then layer query params on top
   // (for the "Run Again" flow from a task detail page).

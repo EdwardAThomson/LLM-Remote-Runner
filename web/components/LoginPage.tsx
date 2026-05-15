@@ -1,14 +1,12 @@
-'use client';
-
 import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { login } from '../../lib/auth';
+import { useNavigate } from 'react-router-dom';
+import { login } from '../lib/auth';
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -17,7 +15,7 @@ export default function LoginPage() {
 
     try {
       await login(password);
-      router.push('/');
+      navigate('/');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       setError(message);

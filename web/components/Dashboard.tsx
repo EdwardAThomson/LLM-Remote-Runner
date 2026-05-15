@@ -1,7 +1,5 @@
-'use client';
-
-import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AnyBackend,
   deleteTask,
@@ -151,7 +149,7 @@ export default function Dashboard() {
               {loading ? 'Loading…' : 'Refresh'}
             </button>
           </div>
-          <Link href="/tasks/new" className="primary-button dashboard-new-button">
+          <Link to="/tasks/new" className="primary-button dashboard-new-button">
             New Task
           </Link>
         </div>
@@ -161,7 +159,7 @@ export default function Dashboard() {
         {items.length === 0 && !loading ? (
           <div className="dashboard-empty">
             <p>No tasks yet.</p>
-            <Link href="/tasks/new" className="primary-button">
+            <Link to="/tasks/new" className="primary-button">
               Run your first task
             </Link>
           </div>
@@ -183,7 +181,7 @@ export default function Dashboard() {
                 {items.map((task) => (
                   <tr key={task.id}>
                     <td>
-                      <Link href={`/tasks/${task.id}`} className="task-row-link">
+                      <Link to={`/tasks/${task.id}`} className="task-row-link">
                         {formatRelativeTime(task.createdAt)}
                       </Link>
                     </td>

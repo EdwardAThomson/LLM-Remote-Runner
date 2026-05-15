@@ -1,7 +1,7 @@
 import Cookies from 'js-cookie';
 
 const TOKEN_KEY = 'codex_session_token';
-const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3000';
+const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL ?? 'http://localhost:3000';
 
 export interface LoginResponse {
   access_token: string;
@@ -81,7 +81,7 @@ export function getToken(): string | undefined {
 export function setToken(token: string): void {
   Cookies.set(TOKEN_KEY, token, {
     expires: 1, // 1 day
-    secure: process.env.NODE_ENV === 'production',
+    secure: import.meta.env.PROD,
     sameSite: 'strict',
   });
 }

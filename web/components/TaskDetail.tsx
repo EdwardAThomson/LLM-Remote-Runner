@@ -1,8 +1,5 @@
-'use client';
-
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   AnyBackend,
   cancelTask,
@@ -34,7 +31,7 @@ interface LogEntry {
 }
 
 export default function TaskDetailView({ taskId }: TaskDetailProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [task, setTask] = useState<TaskDetailType | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [currentState, setCurrentState] = useState<TaskState | null>(null);
@@ -147,7 +144,7 @@ export default function TaskDetailView({ taskId }: TaskDetailProps) {
     if (task.backend) params.set('backend', task.backend);
     if (task.model) params.set('model', task.model);
     if (task.cwd) params.set('cwd', task.cwd);
-    router.push(`/tasks/new?${params.toString()}`);
+    navigate(`/tasks/new?${params.toString()}`);
   };
 
   return (
@@ -155,7 +152,7 @@ export default function TaskDetailView({ taskId }: TaskDetailProps) {
       <Header />
       <div className="task-detail">
         <div className="task-detail-back">
-          <Link href="/" className="link-button">← Dashboard</Link>
+          <Link to="/" className="link-button">← Dashboard</Link>
         </div>
 
         {loading && !task ? <p>Loading…</p> : null}
