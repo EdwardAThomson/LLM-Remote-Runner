@@ -118,7 +118,7 @@ The gateway is already an HTTP API, but the auth model (password → short-lived
 - [x] Side-fix: `@nestjs/throttler@5` switched `ttl` from seconds → ms; `RATE_LIMIT_DURATION` is configured in seconds for readability and now multiplied by 1000 in the module factory. Without this the previous 60-second limit was effectively unbounded.
 
 ### A.5.5 Docs
-- [ ] New `docs/api.md`: quickstart for service integrations — minting a token, creating a task with a webhook, verifying the signature, polling vs. SSE.
+- [x] [`docs/api.md`](api.md): quickstart for service integrations covering auth (JWT vs `rrt_` tokens), minting/revoking tokens, task creation, webhook payload + signature verification snippet, rate-limit behaviour, error envelope, CORS, and SDK pointer. Cross-referenced from the top-level README.
 
 ---
 

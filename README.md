@@ -233,7 +233,9 @@ curl -X POST http://localhost:3000/api/tasks \
 curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 ```
 
-> 📖 See [`RUNNING.md`](RUNNING.md) for detailed API documentation and examples.
+> 📖 For programmatic / service-to-service use (API tokens, webhooks, rate limits, signed payloads) see [`docs/api.md`](docs/api.md). The interactive endpoint reference (with "try it" buttons) is at `/api/docs` once the gateway is running.
+>
+> 📖 See [`RUNNING.md`](RUNNING.md) for general operational notes.
 
 ## Configuration
 
