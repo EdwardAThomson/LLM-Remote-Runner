@@ -1,4 +1,11 @@
-import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+} from 'class-validator';
 import { AnyBackend } from '../../adapters';
 
 /**
@@ -38,4 +45,13 @@ export class CreateTaskDto {
   @IsString()
   @IsOptional()
   systemPrompt?: string;
+
+  @IsOptional()
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  webhookUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  webhookSecret?: string;
 }

@@ -20,6 +20,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { buildSubprocessEnv } from './subprocess-env';
 import { resolveAllowedCwd } from './workspace.validator';
 import { TasksRepository } from './tasks.repository';
+import { WebhooksService } from './webhooks.service';
 import {
   TaskDetail,
   TaskLogEvent,
@@ -58,6 +59,7 @@ export class TasksService implements OnModuleInit {
     private readonly adapterFactory: AdapterFactory,
     private readonly apiAdapterFactory: ApiAdapterFactory,
     private readonly tasksRepository: TasksRepository,
+    private readonly webhooksService: WebhooksService,
   ) {
     const interval =
       this.configService.get<number>('app.taskHeartbeatMs', 15000) ?? 15000;
@@ -136,7 +138,14 @@ export class TasksService implements OnModuleInit {
       finalized: false,
     };
     this.tasks.set(id, record);
-    this.tasksRepository.insert(this.toSummary(record));
+
+    const webhookUrl = dto.webhookUrl?.trim();
+    this.tasksRepository.insert(
+      this.toSummary(record),
+      webhookUrl
+        ? { url: webhookUrl, secret: dto.webhookSecret?.trim() || null }
+        : null,
+    );
 
     this.pushStatus(record, 'queued');
     
@@ -536,6 +545,13 @@ export class TasksService implements OnModuleInit {
       },
     });
     task.stream.complete();
+
+    this.webhooksService.fire(task.id, {
+      task_id: task.id,
+      state: targetState,
+      exit_code: exitCode,
+      error_message: task.errorMessage,
+    });
   }
 
   private replayTaskStream(task: TaskRecord): ReplaySubject<MessageEvent> {

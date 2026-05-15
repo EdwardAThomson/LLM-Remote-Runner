@@ -29,6 +29,14 @@ export interface CreateTaskPayload {
   model?: string;
   /** System prompt (for API backends) */
   systemPrompt?: string;
+  /**
+   * If set, the gateway POSTs `{ task_id, state, exit_code, error_message }`
+   * to this URL when the task finalizes. Body is signed with HMAC-SHA256 via
+   * `webhookSecret` in the `X-Runner-Signature: sha256=<hex>` header.
+   */
+  webhookUrl?: string;
+  /** Shared secret used to HMAC-sign the webhook body. */
+  webhookSecret?: string;
   metadata?: Record<string, unknown>;
 }
 

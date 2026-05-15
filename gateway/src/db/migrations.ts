@@ -50,4 +50,18 @@ const m002_api_tokens: Migration = {
   `,
 };
 
-export const migrations: Migration[] = [m001_initial, m002_api_tokens];
+const m003_task_webhooks: Migration = {
+  id: '003_task_webhooks',
+  sql: `
+    ALTER TABLE tasks ADD COLUMN webhook_url TEXT;
+    ALTER TABLE tasks ADD COLUMN webhook_secret TEXT;
+    ALTER TABLE tasks ADD COLUMN webhook_last_status INTEGER;
+    ALTER TABLE tasks ADD COLUMN webhook_last_attempt_at TEXT;
+  `,
+};
+
+export const migrations: Migration[] = [
+  m001_initial,
+  m002_api_tokens,
+  m003_task_webhooks,
+];

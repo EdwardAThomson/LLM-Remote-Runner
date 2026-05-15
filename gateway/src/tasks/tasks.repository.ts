@@ -16,6 +16,16 @@ interface TaskRow {
   updated_at: string;
 }
 
+interface TaskWebhookRow {
+  webhook_url: string | null;
+  webhook_secret: string | null;
+}
+
+export interface TaskWebhookConfig {
+  url: string;
+  secret: string | null;
+}
+
 interface TaskLogRow {
   ts: string;
   stream: string;
@@ -26,12 +36,13 @@ interface TaskLogRow {
 export class TasksRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  insert(task: TaskSummary): void {
+  insert(task: TaskSummary, webhook?: TaskWebhookConfig | null): void {
     this.databaseService.db
       .prepare(
         `INSERT INTO tasks
-           (id, prompt, backend, model, cwd, state, exit_code, error_message, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, prompt, backend, model, cwd, state, exit_code, error_message,
+            created_at, updated_at, webhook_url, webhook_secret)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         task.id,
@@ -44,7 +55,29 @@ export class TasksRepository {
         task.errorMessage,
         task.createdAt,
         task.updatedAt,
+        webhook?.url ?? null,
+        webhook?.secret ?? null,
       );
+  }
+
+  findWebhook(id: string): TaskWebhookConfig | null {
+    const row = this.databaseService.db
+      .prepare<[string], TaskWebhookRow>(
+        'SELECT webhook_url, webhook_secret FROM tasks WHERE id = ?',
+      )
+      .get(id);
+    if (!row || !row.webhook_url) return null;
+    return { url: row.webhook_url, secret: row.webhook_secret };
+  }
+
+  updateWebhookStatus(id: string, status: number, attemptedAt: string): void {
+    this.databaseService.db
+      .prepare(
+        `UPDATE tasks
+           SET webhook_last_status = ?, webhook_last_attempt_at = ?
+         WHERE id = ?`,
+      )
+      .run(status, attemptedAt, id);
   }
 
   updateState(

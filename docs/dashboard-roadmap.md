@@ -102,10 +102,11 @@ The gateway is already an HTTP API, but the auth model (password → short-lived
 - [x] **Verified end-to-end:** valid token → 200 on `/api/tasks` and `last_used_at` updates; token on `/api/tokens` → 401; wrong secret → 401; revoked token → 401.
 
 ### A.5.2 Webhooks
-- [ ] Optional `webhook_url` and `webhook_secret` fields on `CreateTaskDto`. Persist alongside the task row (add columns in a new migration).
-- [ ] On task finalization (`completed`/`error`/`canceled`), POST `{ task_id, state, exit_code, error_message }` to the webhook. Sign with HMAC-SHA256 over the JSON body using `webhook_secret`, header `X-Runner-Signature: sha256=<hex>`.
-- [ ] Retry policy: 3 attempts with exponential backoff (1s/5s/30s). Log failures, don't block task finalization on them. Store `webhook_last_status` + `webhook_last_attempt_at` on the row.
-- [ ] **Open question**: do we need a "delivery log" table for debugging, or is one final status enough? Default: one final status; add a table only if users ask for retry visibility.
+- [x] Optional `webhookUrl` + `webhookSecret` on [`CreateTaskDto`](../gateway/src/tasks/dto/create-task.dto.ts) (URL validated as http/https). Persisted via [migration 003](../gateway/src/db/migrations.ts) — `webhook_url`, `webhook_secret`, `webhook_last_status`, `webhook_last_attempt_at` columns on `tasks`. Secret never returned in any API response (verified — `findSummary`/`findDetail` only map public fields; `findWebhook` is internal-only).
+- [x] On finalize, [`WebhooksService.fire`](../gateway/src/tasks/webhooks.service.ts) POSTs `{ task_id, state, exit_code, error_message }`, signed with HMAC-SHA256 in `X-Runner-Signature: sha256=<hex>`. User-Agent set to `llm-remote-runner/1.0`. 10s per-attempt timeout via `AbortController`.
+- [x] Retry: 1 + 3 attempts at 1s/5s/30s backoff. Failures never propagate; `webhook_last_status` records final HTTP status (0 = network/abort error) and `webhook_last_attempt_at` timestamps the last attempt.
+- [x] Smoke-tested end-to-end against a local Python listener: delivered body matched spec, signature verified server-side, DB row updated with `status=200`. Retry path also exercised (listener offline → 4 attempts → `status=0` recorded).
+- [x] **Open question #5 resolved for now**: only last delivery status persisted; no per-attempt log table. Revisit if users want retry visibility.
 
 ### A.5.3 OpenAPI + CORS
 - [ ] Add `@nestjs/swagger`; expose `/api/docs` (JSON + Swagger UI). Behind auth or public? Default: JSON public, UI behind auth.
@@ -194,4 +195,4 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 2. **Conversation forking** (Phase B.5): when the user edits an earlier message, do we branch (preserve original) or overwrite? Start with overwrite.
 3. **Transcript size for CLI adapters** (Phase B.2): at some point the serialized prompt will hit context limits. Truncate silently, or surface a warning?
 4. **System prompts per conversation vs per task** (Phase B.2): stored on the conversation row sounds right, but worth confirming before B.1 ships.
-5. **Webhook delivery log** (Phase A.5.2): keep only last delivery status per task, or persist every attempt for debugging? Start with last-status; add a table only if users ask.
+5. ~~**Webhook delivery log** (Phase A.5.2)~~ — resolved: only last status persisted on the task row; revisit if retry visibility is requested.
