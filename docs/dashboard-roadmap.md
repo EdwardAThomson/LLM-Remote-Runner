@@ -109,9 +109,9 @@ The gateway is already an HTTP API, but the auth model (password → short-lived
 - [x] **Open question #5 resolved for now**: only last delivery status persisted; no per-attempt log table. Revisit if users want retry visibility.
 
 ### A.5.3 OpenAPI + CORS
-- [ ] Add `@nestjs/swagger`; expose `/api/docs` (JSON + Swagger UI). Behind auth or public? Default: JSON public, UI behind auth.
-- [ ] Annotate `tasks` controller + DTOs so the spec is real, not auto-generated junk.
-- [ ] Add CORS allowlist via `CORS_ORIGINS` env var (comma-separated). Default empty = no cross-origin. The web app at `localhost:3001` and the production web origin go in here.
+- [x] `@nestjs/swagger` wired in [main.ts](../gateway/src/main.ts). Swagger UI at `/api/docs`, JSON spec at `/api/docs/json`. Both are gated by a **password-only HTML login form** at `/api/docs/login` ([docs-session.ts](../gateway/src/auth/docs-session.ts)) that issues an HttpOnly `runner_docs_session` cookie carrying the same JWT the API uses. Same admin password as the web login; same JWT lifecycle (24h). Matches the rest of the app's UX (no browser auth dialog, no username field).
+- [x] `@ApiTags`, `@ApiOperation`, `@ApiBearerAuth('bearer')` annotations on every controller (tasks / auth / tokens / health). `@ApiProperty`/`@ApiPropertyOptional` on every DTO field with descriptions, enums, and examples. Spec exposes 12 operations across 4 tags.
+- [x] CORS allowlist via `CORS_ORIGINS` env var (comma-separated). Empty = no cross-origin allowed. Configured in [app.config.ts](../gateway/src/config/app.config.ts) + [env.validation.ts](../gateway/src/config/env.validation.ts); `.env` and `.env.example` updated. Verified: allowed origin gets `Access-Control-Allow-Origin` header echoed back; disallowed origins don't.
 
 ### A.5.4 Rate limiting per principal
 - [ ] Current throttler is global. Switch to per-principal (per-JWT-user or per-token-id) so a noisy service doesn't starve the dashboard. Use `@nestjs/throttler`'s `getTracker()`.

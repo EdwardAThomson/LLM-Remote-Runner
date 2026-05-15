@@ -37,6 +37,7 @@ export interface AppConfig {
   extraSubprocessEnv: string[];
   adminPasswordHash: string;
   dbPath: string;
+  corsOrigins: string[];
 }
 
 function parseList(value: string | undefined): string[] {
@@ -94,4 +95,5 @@ export default registerAs<AppConfig>('app', () => ({
   extraSubprocessEnv: parseList(process.env.EXTRA_SUBPROCESS_ENV),
   adminPasswordHash: process.env.ADMIN_PASSWORD_HASH ?? '',
   dbPath: expandPath(process.env.DB_PATH ?? './data/runner.db'),
+  corsOrigins: parseList(process.env.CORS_ORIGINS),
 }));

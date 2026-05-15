@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdapterFactory, ApiAdapterFactory, ApiBackend } from '../adapters';
 import { Public } from '../auth/public.decorator';
 
@@ -19,6 +20,7 @@ interface BackendsHealthResponse {
   api: ApiBackendHealth[];
 }
 
+@ApiTags('health')
 @Controller('health')
 export class BackendsHealthController {
   constructor(
@@ -28,6 +30,11 @@ export class BackendsHealthController {
 
   @Public()
   @Get('backends')
+  @ApiOperation({
+    summary: 'Backend availability',
+    description:
+      'Reports which CLI binaries are present on PATH and which API backends have credentials configured.',
+  })
   async getBackendsHealth(): Promise<BackendsHealthResponse> {
     // CLI backends: check binary availability using the shared adapter factory
     const cliAvailability = await this.adapterFactory.checkAvailability();

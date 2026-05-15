@@ -3,3 +3,7 @@ packages:
   - "sdk"
   - "web"
   - "mobile"
+# Explicitly opt out of @scarf/scarf's post-install telemetry shim
+# (transitive dep of @nestjs/swagger). Safe to disable — it's analytics only.
+allowBuilds:
+  '@scarf/scarf': false

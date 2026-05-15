@@ -59,4 +59,8 @@ export const envValidationSchema = Joi.object({
 
   // SQLite database file path (created on first run if missing).
   DB_PATH: Joi.string().default('./data/runner.db'),
+
+  // CORS allowlist (comma-separated origins). Empty = no cross-origin allowed.
+  // Example: CORS_ORIGINS=http://localhost:3001,https://runner.example.com
+  CORS_ORIGINS: Joi.string().allow('').default(''),
 });

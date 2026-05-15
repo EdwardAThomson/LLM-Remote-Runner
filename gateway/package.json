@@ -17,6 +17,7 @@
     "@nestjs/jwt": "^10.1.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/swagger": "^11.4.3",
     "@nestjs/throttler": "^5.1.0",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
