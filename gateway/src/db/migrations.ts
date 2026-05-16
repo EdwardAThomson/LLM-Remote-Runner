@@ -60,8 +60,37 @@ const m003_task_webhooks: Migration = {
   `,
 };
 
+const m004_conversations: Migration = {
+  id: '004_conversations',
+  sql: `
+    CREATE TABLE IF NOT EXISTS conversations (
+      id            TEXT PRIMARY KEY,
+      title         TEXT,
+      system_prompt TEXT,
+      created_at    TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_conversations_updated_at
+      ON conversations(updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id              TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+      role            TEXT NOT NULL,
+      content         TEXT NOT NULL,
+      task_id         TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+      backend         TEXT,
+      model           TEXT,
+      created_at      TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation
+      ON messages(conversation_id, created_at);
+  `,
+};
+
 export const migrations: Migration[] = [
   m001_initial,
   m002_api_tokens,
   m003_task_webhooks,
+  m004_conversations,
 ];

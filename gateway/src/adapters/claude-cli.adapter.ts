@@ -41,7 +41,7 @@ export class ClaudeCliAdapter extends BaseCliAdapter {
    * claude -p "prompt" --output-format json
    */
   buildCommand(options: CliCommandOptions): CliInvocation {
-    const args = ['-p', options.prompt, '--output-format', 'json'];
+    const args = ['-p', this.resolvePrompt(options), '--output-format', 'json'];
 
     return {
       command: this.config.binPath,

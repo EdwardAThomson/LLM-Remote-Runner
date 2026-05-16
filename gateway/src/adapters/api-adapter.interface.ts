@@ -1,9 +1,10 @@
 /**
  * API-based LLM adapter interface
- * 
+ *
  * Unlike CLI adapters that spawn processes, API adapters make HTTP requests
  * to cloud-hosted LLM services.
  */
+import { ChatMessage } from './chat-message';
 
 /**
  * Supported API backends
@@ -28,7 +29,7 @@ export interface ApiConfig {
  * Options for API requests
  */
 export interface ApiRequestOptions {
-  /** The prompt to send */
+  /** Single-turn prompt (used when `messages` is not supplied). */
   prompt: string;
   /** Model override (uses default if not specified) */
   model?: string;
@@ -38,6 +39,12 @@ export interface ApiRequestOptions {
   temperature?: number;
   /** System prompt/instructions */
   systemPrompt?: string;
+  /**
+   * Optional full chat transcript. When supplied, the adapter sends this
+   * instead of building a single user message from `prompt`. `systemPrompt`
+   * is still respected and prepended if no `system`-role message exists.
+   */
+  messages?: ChatMessage[];
 }
 
 /**

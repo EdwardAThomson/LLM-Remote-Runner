@@ -7,6 +7,7 @@
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { ChatMessage } from './chat-message';
 import {
   CliAdapter,
   CliBackend,
@@ -85,5 +86,31 @@ export abstract class BaseCliAdapter implements CliAdapter {
    */
   getDefaultTimeoutMs(): number {
     return this.config.defaultTimeoutMs ?? 120000; // 2 minutes default
+  }
+
+  /**
+   * Pick the effective prompt for invocation: if a transcript is supplied,
+   * serialize it into a single prompt string with role markers; otherwise use
+   * the prompt as-is. Adapters can override `serializeMessages` if a specific
+   * CLI prefers a different transcript format.
+   */
+  protected resolvePrompt(options: CliCommandOptions): string {
+    if (options.messages && options.messages.length > 0) {
+      return this.serializeMessages(options.messages);
+    }
+    return options.prompt;
+  }
+
+  /**
+   * Default transcript serialization. Each message becomes a `### <role>`
+   * section. The final user message has no trailing assistant header so the
+   * CLI continues from where the conversation left off.
+   */
+  protected serializeMessages(messages: ChatMessage[]): string {
+    const parts: string[] = [];
+    for (const m of messages) {
+      parts.push(`### ${m.role}\n${m.content.trim()}`);
+    }
+    return parts.join('\n\n');
   }
 }

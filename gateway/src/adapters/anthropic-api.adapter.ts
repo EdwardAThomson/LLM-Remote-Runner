@@ -147,12 +147,31 @@ export class AnthropicApiAdapter extends BaseApiAdapter {
   }
   
   private buildRequestBody(options: ApiRequestOptions, stream: boolean) {
+    // Anthropic's Messages API expects `system` as a top-level field; only
+    // `user` and `assistant` messages go into `messages`.
+    let messages: Array<{ role: string; content: string }>;
+    let system = options.systemPrompt;
+
+    if (options.messages && options.messages.length > 0) {
+      messages = [];
+      for (const m of options.messages) {
+        if (m.role === 'system') {
+          // Promote a system-role message to top-level (last one wins).
+          system = m.content;
+        } else {
+          messages.push({ role: m.role, content: m.content });
+        }
+      }
+    } else {
+      messages = [{ role: 'user', content: options.prompt }];
+    }
+
     return {
       model: this.getModel(options),
       max_tokens: options.maxTokens ?? 4096,
-      messages: [{ role: 'user', content: options.prompt }],
+      messages,
       stream,
-      ...(options.systemPrompt && { system: options.systemPrompt }),
+      ...(system && { system }),
       ...(options.temperature !== undefined && { temperature: options.temperature }),
     };
   }

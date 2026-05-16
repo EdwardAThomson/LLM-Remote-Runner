@@ -123,13 +123,24 @@ export class OpenAiApiAdapter extends BaseApiAdapter {
   
   private buildRequestBody(options: ApiRequestOptions, stream: boolean) {
     const messages: Array<{ role: string; content: string }> = [];
-    
-    if (options.systemPrompt) {
-      messages.push({ role: 'system', content: options.systemPrompt });
+
+    if (options.messages && options.messages.length > 0) {
+      // Multi-turn: pass the transcript through. If the caller supplied a
+      // systemPrompt but no system-role message, prepend one.
+      const hasSystem = options.messages.some((m) => m.role === 'system');
+      if (options.systemPrompt && !hasSystem) {
+        messages.push({ role: 'system', content: options.systemPrompt });
+      }
+      for (const m of options.messages) {
+        messages.push({ role: m.role, content: m.content });
+      }
+    } else {
+      if (options.systemPrompt) {
+        messages.push({ role: 'system', content: options.systemPrompt });
+      }
+      messages.push({ role: 'user', content: options.prompt });
     }
-    
-    messages.push({ role: 'user', content: options.prompt });
-    
+
     return {
       model: this.getModel(options),
       messages,

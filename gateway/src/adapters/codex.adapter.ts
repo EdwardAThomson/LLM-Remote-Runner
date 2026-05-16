@@ -46,8 +46,8 @@ export class CodexAdapter extends BaseCliAdapter {
       args.push('-C', options.cwd);
     }
 
-    // Add the prompt as the final argument
-    args.push(options.prompt);
+    // Add the prompt as the final argument (transcript if multi-turn).
+    args.push(this.resolvePrompt(options));
 
     return {
       command: this.config.binPath,

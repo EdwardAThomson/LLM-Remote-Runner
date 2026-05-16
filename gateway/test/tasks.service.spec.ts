@@ -14,6 +14,7 @@ import {
   ApiAdapterFactory,
 } from '../src/adapters';
 import { TasksRepository } from '../src/tasks/tasks.repository';
+import { WebhooksService } from '../src/tasks/webhooks.service';
 
 jest.mock('child_process', () => ({
   spawn: jest.fn(),
@@ -64,6 +65,7 @@ describe('TasksService', () => {
   let adapterFactory: AdapterFactory;
   let apiAdapterFactory: ApiAdapterFactory;
   let tasksRepository: TasksRepository;
+  let webhooksService: WebhooksService;
   let workspaceRoot: string;
 
   beforeEach(async () => {
@@ -84,11 +86,13 @@ describe('TasksService', () => {
       deleteTask: jest.fn(),
       markInterruptedAsError: jest.fn().mockReturnValue([]),
     } as unknown as TasksRepository;
+    webhooksService = { fire: jest.fn() } as unknown as WebhooksService;
     service = new TasksService(
       configService,
       adapterFactory,
       apiAdapterFactory,
       tasksRepository,
+      webhooksService,
     );
   });
 
@@ -254,6 +258,7 @@ describe('TasksService', () => {
       adapterFactory,
       apiAdapterFactory,
       tasksRepository,
+      webhooksService,
     );
 
     const child = createChildProcess();

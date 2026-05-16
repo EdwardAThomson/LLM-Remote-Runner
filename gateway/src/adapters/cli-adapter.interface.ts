@@ -4,6 +4,7 @@
  * Defines the contract for all CLI-based LLM backends (Codex, Claude, Gemini).
  * Each adapter knows how to build commands and parse output for its specific CLI.
  */
+import { ChatMessage } from './chat-message';
 
 /**
  * Supported CLI backends
@@ -38,12 +39,22 @@ export interface CliInvocation {
  * Options for building a CLI command
  */
 export interface CliCommandOptions {
-  /** The prompt to send to the LLM */
+  /**
+   * The prompt to send to the LLM. For one-shot tasks this is the user prompt
+   * verbatim; for conversation turns, the service serializes `messages` into
+   * this field via the adapter's `serializeMessages` helper before invocation.
+   */
   prompt: string;
   /** Working directory for the command */
   cwd?: string;
   /** Model override (if supported by the backend) */
   model?: string;
+  /**
+   * Optional full conversation transcript. When supplied, the adapter is
+   * expected to serialize it into a single prompt string (CLIs don't speak
+   * native chat history). When omitted, `prompt` is used as-is.
+   */
+  messages?: ChatMessage[];
 }
 
 /**

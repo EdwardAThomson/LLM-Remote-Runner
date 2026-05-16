@@ -45,7 +45,7 @@ export class GeminiCliAdapter extends BaseCliAdapter {
   buildCommand(options: CliCommandOptions): CliInvocation {
     const model = options.model ?? this.config.defaultModel ?? 'gemini-3-flash-preview';
 
-    const args = ['--skip-trust', '-p', options.prompt, '-m', model];
+    const args = ['--skip-trust', '-p', this.resolvePrompt(options), '-m', model];
 
     return {
       command: this.config.binPath,

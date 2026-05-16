@@ -159,19 +159,30 @@ export class GeminiApiAdapter extends BaseApiAdapter {
   }
   
   private buildRequestBody(options: ApiRequestOptions) {
+    // Gemini calls assistant turns "model" rather than "assistant", and the
+    // system instruction is a top-level field (not part of `contents`).
     const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
-    
-    // Add system instruction if provided
-    const systemInstruction = options.systemPrompt
-      ? { parts: [{ text: options.systemPrompt }] }
+    let systemText = options.systemPrompt;
+
+    if (options.messages && options.messages.length > 0) {
+      for (const m of options.messages) {
+        if (m.role === 'system') {
+          systemText = m.content;
+          continue;
+        }
+        contents.push({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }],
+        });
+      }
+    } else {
+      contents.push({ role: 'user', parts: [{ text: options.prompt }] });
+    }
+
+    const systemInstruction = systemText
+      ? { parts: [{ text: systemText }] }
       : undefined;
-    
-    // Add user message
-    contents.push({
-      role: 'user',
-      parts: [{ text: options.prompt }],
-    });
-    
+
     return {
       contents,
       ...(systemInstruction && { systemInstruction }),
