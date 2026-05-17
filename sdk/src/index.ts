@@ -340,3 +340,173 @@ function defaultEventSourceFactory(
   }
   return new EventSource(url, init);
 }
+
+// ============================================
+// Conversations (Phase B)
+// ============================================
+
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+export interface ChatMessage {
+  role: MessageRole;
+  content: string;
+}
+
+export interface ConversationSummary {
+  id: string;
+  title: string | null;
+  systemPrompt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MessageRecord {
+  id: string;
+  conversationId: string;
+  role: MessageRole;
+  content: string;
+  taskId: string | null;
+  backend: AnyBackend | null;
+  model: string | null;
+  createdAt: string;
+}
+
+export interface ConversationDetail extends ConversationSummary {
+  messages: MessageRecord[];
+}
+
+export interface CreateConversationPayload {
+  title?: string;
+  systemPrompt?: string;
+}
+
+export interface UpdateConversationPayload {
+  /** Use null to clear. */
+  title?: string | null;
+  /** Use null to clear. */
+  systemPrompt?: string | null;
+}
+
+export interface SendMessagePayload {
+  content: string;
+  backend?: AnyBackend;
+  model?: string;
+  /** CLI backends only; must be inside the configured workspace allowlist. */
+  cwd?: string;
+}
+
+export interface SendMessageResponse {
+  message_id: string;
+  task_id: string;
+}
+
+export interface ListConversationsQuery {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ListConversationsResponse {
+  items: ConversationSummary[];
+  next_cursor: string | null;
+}
+
+export async function listConversations(
+  baseUrl: string,
+  query: ListConversationsQuery = {},
+  options: CreateTaskOptions = {},
+): Promise<ListConversationsResponse> {
+  const url = new URL('/api/conversations', baseUrl);
+  if (query.limit !== undefined) url.searchParams.set('limit', String(query.limit));
+  if (query.cursor) url.searchParams.set('cursor', query.cursor);
+  return fetchJson<ListConversationsResponse>(url, 'GET', undefined, options, 'list conversations');
+}
+
+export async function getConversation(
+  baseUrl: string,
+  id: string,
+  options: CreateTaskOptions = {},
+): Promise<ConversationDetail> {
+  const url = new URL(`/api/conversations/${id}`, baseUrl);
+  return fetchJson<ConversationDetail>(url, 'GET', undefined, options, 'get conversation');
+}
+
+export async function createConversation(
+  baseUrl: string,
+  payload: CreateConversationPayload = {},
+  options: CreateTaskOptions = {},
+): Promise<ConversationSummary> {
+  const url = new URL('/api/conversations', baseUrl);
+  return fetchJson<ConversationSummary>(url, 'POST', payload, options, 'create conversation');
+}
+
+export async function updateConversation(
+  baseUrl: string,
+  id: string,
+  patch: UpdateConversationPayload,
+  options: CreateTaskOptions = {},
+): Promise<ConversationSummary> {
+  const url = new URL(`/api/conversations/${id}`, baseUrl);
+  return fetchJson<ConversationSummary>(url, 'PATCH', patch, options, 'update conversation');
+}
+
+/** Convenience wrapper around `updateConversation` for the common rename case. */
+export async function renameConversation(
+  baseUrl: string,
+  id: string,
+  title: string | null,
+  options: CreateTaskOptions = {},
+): Promise<ConversationSummary> {
+  return updateConversation(baseUrl, id, { title }, options);
+}
+
+export async function deleteConversation(
+  baseUrl: string,
+  id: string,
+  options: CreateTaskOptions = {},
+): Promise<void> {
+  const url = new URL(`/api/conversations/${id}`, baseUrl);
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  const response = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers,
+    signal: options.signal,
+  });
+  if (!response.ok && response.status !== 204) {
+    const text = await response.text();
+    throw new Error(`Failed to delete conversation (${response.status}): ${text}`);
+  }
+}
+
+export async function sendMessage(
+  baseUrl: string,
+  conversationId: string,
+  payload: SendMessagePayload,
+  options: CreateTaskOptions = {},
+): Promise<SendMessageResponse> {
+  const url = new URL(`/api/conversations/${conversationId}/messages`, baseUrl);
+  return fetchJson<SendMessageResponse>(url, 'POST', payload, options, 'send message');
+}
+
+async function fetchJson<T>(
+  url: URL,
+  method: 'GET' | 'POST' | 'PATCH',
+  body: unknown,
+  options: CreateTaskOptions,
+  errorLabel: string,
+): Promise<T> {
+  const headers: Record<string, string> = { ...(options.headers ?? {}) };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (options.token) headers.Authorization = `Bearer ${options.token}`;
+  const response = await fetch(url.toString(), {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: options.signal,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Failed to ${errorLabel} (${response.status}): ${text}`);
+  }
+  return (await response.json()) as T;
+}

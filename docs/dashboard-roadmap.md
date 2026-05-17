@@ -176,7 +176,9 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 - [x] **Verified end-to-end** with the gemini-cli backend: create → list → send → task completes → fetch transcript shows the user message and an assistant message with `task_id`/`backend` populated. Auto-derived title works; per-conversation system prompt is honored (response respected the "one sentence" instruction).
 
 ### B.4 SDK
-- [ ] `listConversations`, `getConversation`, `createConversation`, `sendMessage`, `streamMessage`, `renameConversation`, `deleteConversation`.
+- [x] [`@codex/sdk`](../sdk/src/index.ts) exports `listConversations`, `getConversation`, `createConversation`, `updateConversation`, `renameConversation` (thin wrapper over update), `deleteConversation`, `sendMessage`, plus all the conversation/message types.
+- [x] [`web/lib/sdk.ts`](../web/lib/sdk.ts) re-wraps with cookie-auth.
+- Note: there's no separate `streamMessage` — `sendMessage` returns `{ message_id, task_id }`, and the existing `streamTask(task_id, …)` watches the assistant turn live. One stream API, two use cases.
 
 ### B.5 Web routing
 - [ ] `/` dashboard gains a tab toggle: **Conversations** | **Tasks** (or stays on Conversations and Tasks moves to `/tasks`).
