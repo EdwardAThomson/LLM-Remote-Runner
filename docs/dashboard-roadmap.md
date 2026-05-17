@@ -127,6 +127,11 @@ The gateway is already an HTTP API, but the auth model (password → short-lived
 State lives in our DB, not in the CLI. Each turn re-invokes the adapter with the full transcript. This makes model-switching mid-thread trivial.
 
 ### B.1 Schema additions
+- [x] Migration 004 adds `conversations` (id, title, system_prompt, created_at, updated_at) and `messages` (id, conversation_id FK with cascade, role, content, task_id FK with set-null, backend, model, created_at). `tasks.conversation_id` / `tasks.parent_task_id` columns from Phase 0 are now populated by conversation-initiated tasks.
+- [x] [`ConversationsRepository`](../gateway/src/conversations/conversations.repository.ts) wraps both tables (cursor-paginated list, find, update, touch, delete; insert/list/findDetail for messages).
+- [x] Side-fix: `DatabaseService` now opens the connection in its constructor instead of `onModuleInit`. The OnModuleInit-based version raced with `TasksService.onModuleInit` (which queries the DB to hydrate interrupted tasks) once the provider graph grew with `ConversationsModule`.
+
+
 ```sql
 CREATE TABLE conversations (
   id          TEXT PRIMARY KEY,
@@ -151,20 +156,24 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 `tasks.conversation_id` / `tasks.parent_task_id` columns from Phase 0 start getting populated.
 
 ### B.2 Adapter contract change
-- [ ] Extend `CliAdapter` interface to accept `messages: ChatMessage[]` instead of (or alongside) `prompt: string`.
-- [ ] Per-adapter transcript handling:
-  - **API backends** (OpenAI/Anthropic/Gemini): native `messages` field — pass through.
-  - **CLI backends** (Codex / Claude / Gemini CLI): serialize transcript into a single prompt with role markers (e.g. `### User\n…\n### Assistant\n…`). Document the exact format in each adapter.
-- [ ] Decide on system-prompt handling: per-conversation `system` message stored in DB, prepended at adapter call time (open question #4 — confirm scope before shipping B.1).
-- [ ] Decide behaviour when serialized transcript exceeds the backend's context window (open question #3). Options: silent truncation of oldest messages, hard error, or surfacing a warning in the UI. Pick when first long conversation hits the limit.
+- [x] Shared [`ChatMessage`](../gateway/src/adapters/chat-message.ts) type in `adapters/`. `CliCommandOptions` and `ApiRequestOptions` gain an optional `messages` field; when supplied, the adapter uses it instead of `prompt`.
+- [x] Per-adapter transcript handling:
+  - **API backends** (OpenAI/Anthropic/Gemini): native `messages` field — pass through. Anthropic's `system` stays top-level; Gemini's `assistant` role is translated to `model`.
+  - **CLI backends**: serialized via [`BaseCliAdapter.resolvePrompt()`](../gateway/src/adapters/base-cli.adapter.ts) into `### role\n<content>` sections joined by blank lines. Each CLI adapter calls `this.resolvePrompt(options)` instead of `options.prompt` directly.
+- [x] System-prompt handling (open question #4): per-conversation `system_prompt` column, prepended via `internal.systemPrompt` at adapter call time. The DTO doesn't accept per-turn system prompts.
+- [ ] Context-window overflow (open question #3): still deferred; first long conversation will tell us.
 
 ### B.3 Gateway API for conversations
-- [ ] `POST /api/conversations` — create empty conversation, returns id.
-- [ ] `GET /api/conversations` — paginated list with last-message preview.
-- [ ] `GET /api/conversations/:id` — full message history.
-- [ ] `POST /api/conversations/:id/messages` — body `{ content, backend, model, cwd? }`. Server appends user message, creates a task with the full transcript, streams the assistant turn back. Returns `{ message_id, task_id }`.
-- [ ] `PATCH /api/conversations/:id` — rename, edit system prompt.
-- [ ] `DELETE /api/conversations/:id`.
+- [x] [ConversationsController](../gateway/src/conversations/conversations.controller.ts) exposes:
+  - `POST /api/conversations` — create (title and systemPrompt optional)
+  - `GET /api/conversations` — cursor-paginated list, most recently updated first
+  - `GET /api/conversations/:id` — full transcript
+  - `PATCH /api/conversations/:id` — rename, edit/clear system prompt
+  - `DELETE /api/conversations/:id` — cascades to messages and detaches assistant messages' task_ids (set null)
+  - `POST /api/conversations/:id/messages` — appends user message, creates task with full transcript, returns `{ message_id, task_id }`
+- [x] [`ConversationsService`](../gateway/src/conversations/conversations.service.ts) subscribes to the task's SSE stream, accumulates stdout into a buffer, and writes the assistant message on stream completion. Title is auto-derived from the first user message when the conversation has none.
+- [x] [`TasksService.create()`](../gateway/src/tasks/tasks.service.ts) accepts an internal-only second parameter (`messages`, `conversationId`, `systemPrompt`, `parentTaskId`) — the public CreateTaskDto and Swagger surface are unchanged.
+- [x] **Verified end-to-end** with the gemini-cli backend: create → list → send → task completes → fetch transcript shows the user message and an assistant message with `task_id`/`backend` populated. Auto-derived title works; per-conversation system prompt is honored (response respected the "one sentence" instruction).
 
 ### B.4 SDK
 - [ ] `listConversations`, `getConversation`, `createConversation`, `sendMessage`, `streamMessage`, `renameConversation`, `deleteConversation`.

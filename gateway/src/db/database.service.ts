@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'fs';
@@ -6,13 +6,16 @@ import { dirname, resolve } from 'path';
 import { migrations } from './migrations';
 
 @Injectable()
-export class DatabaseService implements OnModuleInit, OnModuleDestroy {
+export class DatabaseService implements OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
-  private database!: Database.Database;
+  private readonly database: Database.Database;
 
-  constructor(private readonly configService: ConfigService) {}
-
-  onModuleInit(): void {
+  constructor(private readonly configService: ConfigService) {
+    // Open the connection synchronously in the constructor so any other
+    // provider whose own `onModuleInit` queries the DB (e.g. TasksService
+    // hydrating interrupted tasks) sees it ready. Doing this in
+    // `onModuleInit` would race with peer providers since Nest doesn't
+    // guarantee init order across the dependency graph.
     const configuredPath =
       this.configService.get<string>('app.dbPath') ?? './data/runner.db';
     const dbPath = resolve(configuredPath);

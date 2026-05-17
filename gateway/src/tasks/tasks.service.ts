@@ -16,6 +16,7 @@ import {
   ApiAdapterFactory,
   CliAdapter,
 } from '../adapters';
+import { ChatMessage } from '../adapters/chat-message';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { buildSubprocessEnv } from './subprocess-env';
 import { resolveAllowedCwd } from './workspace.validator';
@@ -27,6 +28,18 @@ import {
   TaskState,
   TaskSummary,
 } from './task-types';
+
+/** Internal-only extras for `create()`. Not exposed via the public DTO. */
+export interface CreateTaskInternal {
+  /** Full chat transcript passed to the adapter (multi-turn convos). */
+  messages?: ChatMessage[];
+  /** Conversation this task belongs to, persisted on the task row. */
+  conversationId?: string;
+  /** Parent task (e.g. for branched conversations — unused for now). */
+  parentTaskId?: string;
+  /** Override systemPrompt for API adapters (used when the conversation has one). */
+  systemPrompt?: string;
+}
 
 export { TaskDetail, TaskLogEvent, TaskState, TaskSummary } from './task-types';
 
@@ -46,6 +59,10 @@ interface TaskRecord extends TaskDetail {
     stateOverride?: TaskState;
     messageOverride?: string | null;
   };
+  /** Full chat transcript (multi-turn conversations). Adapter prefers this over `prompt`. */
+  messages?: ChatMessage[];
+  /** Conversation this task belongs to (one-shot tasks leave this undefined). */
+  conversationId?: string;
 }
 
 @Injectable()
@@ -83,7 +100,10 @@ export class TasksService implements OnModuleInit {
     return ['openai-api', 'anthropic-api', 'gemini-api'].includes(backend);
   }
 
-  async create(dto: CreateTaskDto): Promise<TaskSummary> {
+  async create(
+    dto: CreateTaskDto,
+    internal: CreateTaskInternal = {},
+  ): Promise<TaskSummary> {
     const id = randomUUID();
     const now = new Date().toISOString();
 
@@ -136,22 +156,25 @@ export class TasksService implements OnModuleInit {
       stream: new ReplaySubject<MessageEvent>(),
       buffers: { stdout: '', stderr: '' },
       finalized: false,
+      messages: internal.messages,
+      conversationId: internal.conversationId,
     };
     this.tasks.set(id, record);
 
     const webhookUrl = dto.webhookUrl?.trim();
-    this.tasksRepository.insert(
-      this.toSummary(record),
-      webhookUrl
+    this.tasksRepository.insert(this.toSummary(record), {
+      webhook: webhookUrl
         ? { url: webhookUrl, secret: dto.webhookSecret?.trim() || null }
         : null,
-    );
+      conversationId: internal.conversationId ?? null,
+      parentTaskId: internal.parentTaskId ?? null,
+    });
 
     this.pushStatus(record, 'queued');
-    
+
     // Run task based on backend type
     if (this.isApiBackend(backend)) {
-      this.runApiTask(record, dto.systemPrompt);
+      this.runApiTask(record, internal.systemPrompt ?? dto.systemPrompt);
     } else {
       this.runCliTask(record);
     }
@@ -290,11 +313,13 @@ export class TasksService implements OnModuleInit {
     
     const cwd = task.cwd ?? process.cwd();
     
-    // Use the adapter to build the command
+    // Use the adapter to build the command. If we have a multi-turn transcript,
+    // the adapter serializes it into a single prompt string before invocation.
     const invocation = task.cliAdapter.buildCommand({
       prompt: task.prompt,
       cwd,
       model: task.model ?? undefined,
+      messages: task.messages,
     });
 
     this.logger.log(
@@ -373,11 +398,13 @@ export class TasksService implements OnModuleInit {
       this.pushStatus(task, 'running');
       this.startHeartbeat(task);
       
-      // Stream the response
+      // Stream the response. When the task carries a multi-turn transcript,
+      // the adapter sends it through natively (Chat Completions / Messages API).
       const stream = adapter.stream({
         prompt: task.prompt,
         model: task.model ?? undefined,
         systemPrompt,
+        messages: task.messages,
       });
       
       let fullContent = '';

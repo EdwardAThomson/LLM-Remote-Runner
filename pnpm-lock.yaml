@@ -49,6 +49,9 @@ importers:
       class-validator:
         specifier: ^0.14.0
         version: 0.14.2
+      express:
+        specifier: ^4.21.2
+        version: 4.21.2
       joi:
         specifier: ^17.10.1
         version: 17.13.3

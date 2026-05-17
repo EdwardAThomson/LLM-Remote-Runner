@@ -36,13 +36,21 @@ interface TaskLogRow {
 export class TasksRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  insert(task: TaskSummary, webhook?: TaskWebhookConfig | null): void {
+  insert(
+    task: TaskSummary,
+    opts: {
+      webhook?: TaskWebhookConfig | null;
+      conversationId?: string | null;
+      parentTaskId?: string | null;
+    } = {},
+  ): void {
     this.databaseService.db
       .prepare(
         `INSERT INTO tasks
            (id, prompt, backend, model, cwd, state, exit_code, error_message,
-            created_at, updated_at, webhook_url, webhook_secret)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            created_at, updated_at, webhook_url, webhook_secret,
+            conversation_id, parent_task_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         task.id,
@@ -55,8 +63,10 @@ export class TasksRepository {
         task.errorMessage,
         task.createdAt,
         task.updatedAt,
-        webhook?.url ?? null,
-        webhook?.secret ?? null,
+        opts.webhook?.url ?? null,
+        opts.webhook?.secret ?? null,
+        opts.conversationId ?? null,
+        opts.parentTaskId ?? null,
       );
   }
 
