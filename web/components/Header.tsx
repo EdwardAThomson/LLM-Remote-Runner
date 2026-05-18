@@ -3,8 +3,9 @@ import { logout } from '../lib/auth';
 
 export default function Header() {
   const { pathname } = useLocation();
-  const isDashboard = pathname === '/';
-  const isNewTask = pathname.startsWith('/tasks/new');
+  const isConversations =
+    pathname === '/' || pathname.startsWith('/conversations');
+  const isTasks = pathname.startsWith('/tasks');
   const isSettings = pathname.startsWith('/settings');
 
   return (
@@ -16,15 +17,15 @@ export default function Header() {
       <nav className="app-nav">
         <Link
           to="/"
-          className={`nav-link${isDashboard ? ' nav-link-active' : ''}`}
+          className={`nav-link${isConversations ? ' nav-link-active' : ''}`}
         >
-          Dashboard
+          Conversations
         </Link>
         <Link
-          to="/tasks/new"
-          className={`nav-link${isNewTask ? ' nav-link-active' : ''}`}
+          to="/tasks"
+          className={`nav-link${isTasks ? ' nav-link-active' : ''}`}
         >
-          New Task
+          Tasks
         </Link>
         <Link
           to="/settings/tokens"

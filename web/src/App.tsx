@@ -1,5 +1,7 @@
 import { Route, Routes, useParams } from 'react-router-dom';
 import AuthGuard from '../components/AuthGuard';
+import ConversationsList from '../components/ConversationsList';
+import ConversationView from '../components/ConversationView';
 import Dashboard from '../components/Dashboard';
 import LoginPage from '../components/LoginPage';
 import TaskConsole from '../components/TaskConsole';
@@ -20,6 +22,22 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route
             path="/"
+            element={
+              <AuthGuard>
+                <ConversationsList />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/conversations/:id"
+            element={
+              <AuthGuard>
+                <ConversationView />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/tasks"
             element={
               <AuthGuard>
                 <Dashboard />

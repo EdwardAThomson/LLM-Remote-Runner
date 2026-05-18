@@ -181,12 +181,13 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at);
 - Note: there's no separate `streamMessage` — `sendMessage` returns `{ message_id, task_id }`, and the existing `streamTask(task_id, …)` watches the assistant turn live. One stream API, two use cases.
 
 ### B.5 Web routing
-- [ ] `/` dashboard gains a tab toggle: **Conversations** | **Tasks** (or stays on Conversations and Tasks moves to `/tasks`).
-- [ ] `/conversations/[id]` — chat-style transcript. Per-turn model selector (defaults to last-used). Streams assistant turn live. "Edit & resend" on user messages — branch vs. overwrite is open question #2; start with overwrite for v1.
-- [ ] One-shot tasks page (`/tasks`) stays around for ad-hoc / non-chat work — e.g. "run this prompt in workspace X".
+- [x] `/` now serves [`ConversationsList`](../web/components/ConversationsList.tsx) (table of conversations, "New Conversation" modal with optional title + system prompt, modal-driven delete). Old tasks dashboard moved to `/tasks`.
+- [x] `/conversations/:id` → [`ConversationView`](../web/components/ConversationView.tsx): chat-style transcript with user/assistant bubbles, system-prompt collapsible at the top, per-turn backend + model selector (last-used persisted in `localStorage`), composer with ⌘/Ctrl+Enter to send, live streaming of the assistant turn (a pending "Thinking…" bubble that fills in as stdout arrives), and a "View task →" link to inspect the underlying task in `/tasks/:id` for debugging.
+- [x] One-shot tasks page lives at `/tasks` (table moved as-is). Header nav: Conversations · Tasks · Settings · Logout.
+- [ ] "Edit & resend" on user messages (open question #2) — deferred. The current flow appends new messages; messages can't be edited yet.
 
 ### B.6 Migration of existing tasks
-- [ ] Existing tasks without `conversation_id` remain visible on `/tasks`. No back-fill into conversations.
+- [x] Existing tasks (no `conversation_id`) are visible at `/tasks` as before. Conversation-initiated tasks also show up there (they have a `conversation_id` set in the DB but the dashboard treats them uniformly). No back-fill.
 
 ---
 
