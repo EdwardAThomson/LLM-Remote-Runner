@@ -14,6 +14,7 @@ interface TaskRow {
   error_message: string | null;
   created_at: string;
   updated_at: string;
+  conversation_id: string | null;
 }
 
 interface TaskWebhookRow {
@@ -78,6 +79,12 @@ export class TasksRepository {
       .get(id);
     if (!row || !row.webhook_url) return null;
     return { url: row.webhook_url, secret: row.webhook_secret };
+  }
+
+  setConversationId(id: string, conversationId: string | null): void {
+    this.databaseService.db
+      .prepare('UPDATE tasks SET conversation_id = ? WHERE id = ?')
+      .run(conversationId, id);
   }
 
   updateWebhookStatus(id: string, status: number, attemptedAt: string): void {
@@ -207,6 +214,7 @@ export class TasksRepository {
       errorMessage: row.error_message,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      conversationId: row.conversation_id,
     };
   }
 }

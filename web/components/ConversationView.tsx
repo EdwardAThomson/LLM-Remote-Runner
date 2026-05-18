@@ -1,12 +1,14 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   AnyBackend,
   ConversationDetail,
+  ConversationViewMode,
   getConversation,
   MessageRecord,
   sendMessage,
   streamTask,
+  updateConversation,
 } from '../lib/sdk';
 import Header from './Header';
 
@@ -22,8 +24,11 @@ const BACKENDS: { value: AnyBackend; label: string }[] = [
 const STORAGE_BACKEND = 'llm-runner-conv-backend';
 const STORAGE_MODEL = 'llm-runner-conv-model';
 
+type ViewMode = ConversationViewMode;
+
 export default function ConversationView() {
   const { id: conversationId } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [conversation, setConversation] = useState<ConversationDetail | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [content, setContent] = useState('');
@@ -33,6 +38,7 @@ export default function ConversationView() {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('chat');
   const transcriptRef = useRef<HTMLDivElement>(null);
   const streamCleanup = useRef<(() => void) | undefined>();
 
@@ -45,6 +51,53 @@ export default function ConversationView() {
     const storedModel = localStorage.getItem(STORAGE_MODEL);
     if (storedModel) setModel(storedModel);
   }, []);
+
+  // The view mode now lives on the conversation row. Mirror it into local
+  // state so the UI can update optimistically without waiting for the PATCH
+  // round-trip. Conversation load syncs the canonical value back in.
+  useEffect(() => {
+    if (conversation) setViewMode(conversation.viewMode);
+  }, [conversation?.viewMode]);
+
+  // The `?view=` query param is a one-time hint from the "Continue as
+  // conversation" flow — apply it once on mount, persist via PATCH, and
+  // strip it from the URL so a refresh doesn't keep forcing the choice.
+  useEffect(() => {
+    if (!conversationId || !conversation) return;
+    const queryView = searchParams.get('view');
+    if (queryView !== 'chat' && queryView !== 'console') return;
+    if (conversation.viewMode !== queryView) {
+      void persistViewMode(queryView);
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('view');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversation?.id]);
+
+  const persistViewMode = useCallback(
+    async (next: ViewMode) => {
+      if (!conversationId) return;
+      setViewMode(next); // optimistic
+      try {
+        const updated = await updateConversation(conversationId, {
+          viewMode: next,
+        });
+        setConversation((prev) => (prev ? { ...prev, ...updated } : prev));
+      } catch (err) {
+        // Roll back optimistic change on failure.
+        if (conversation) setViewMode(conversation.viewMode);
+        setLoadError(
+          err instanceof Error ? err.message : 'Failed to change view mode',
+        );
+      }
+    },
+    [conversationId, conversation],
+  );
+
+  const handleViewModeChange = (next: ViewMode) => {
+    void persistViewMode(next);
+  };
 
   const load = useCallback(async () => {
     if (!conversationId) return;
@@ -158,7 +211,27 @@ export default function ConversationView() {
         {conversation ? (
           <>
             <div className="chat-meta">
-              <h2 className="chat-title">{conversation.title || '(untitled)'}</h2>
+              <div className="chat-meta-head">
+                <h2 className="chat-title">{conversation.title || '(untitled)'}</h2>
+                <div className="chat-view-toggle" role="tablist" aria-label="View mode">
+                  <button
+                    type="button"
+                    className={`chat-view-tab${viewMode === 'chat' ? ' chat-view-tab-active' : ''}`}
+                    onClick={() => handleViewModeChange('chat')}
+                    aria-selected={viewMode === 'chat'}
+                  >
+                    Chat
+                  </button>
+                  <button
+                    type="button"
+                    className={`chat-view-tab${viewMode === 'console' ? ' chat-view-tab-active' : ''}`}
+                    onClick={() => handleViewModeChange('console')}
+                    aria-selected={viewMode === 'console'}
+                  >
+                    Console
+                  </button>
+                </div>
+              </div>
               {conversation.systemPrompt ? (
                 <details className="chat-system">
                   <summary>System prompt</summary>
@@ -167,10 +240,13 @@ export default function ConversationView() {
               ) : null}
             </div>
 
-            <div className="chat-transcript" ref={transcriptRef}>
+            <div
+              className={`chat-transcript${viewMode === 'console' ? ' chat-transcript-console' : ''}`}
+              ref={transcriptRef}
+            >
               {conversation.messages.length === 0 && !pendingAssistant ? (
                 <p className="chat-empty">No messages yet — say hello.</p>
-              ) : (
+              ) : viewMode === 'chat' ? (
                 <ul className="chat-list">
                   {conversation.messages
                     .filter((m) => m.role !== 'system')
@@ -195,6 +271,28 @@ export default function ConversationView() {
                     </li>
                   ) : null}
                 </ul>
+              ) : (
+                <div className="console-transcript">
+                  {conversation.messages
+                    .filter((m) => m.role !== 'system')
+                    .map((m) =>
+                      m.role === 'user' ? (
+                        <div key={m.id} className="console-prompt">
+                          <span className="console-prompt-marker">{'>'}</span>
+                          <pre className="console-prompt-text">{m.content}</pre>
+                        </div>
+                      ) : (
+                        <pre key={m.id} className="console-output">
+                          {m.content}
+                        </pre>
+                      ),
+                    )}
+                  {pendingAssistant !== null ? (
+                    <pre className="console-output console-output-pending">
+                      {pendingAssistant || '⏳ thinking…'}
+                    </pre>
+                  ) : null}
+                </div>
               )}
             </div>
 

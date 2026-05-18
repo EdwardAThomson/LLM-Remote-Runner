@@ -4,6 +4,7 @@ import { DatabaseService } from '../db/database.service';
 import {
   ConversationDetail,
   ConversationSummary,
+  ConversationViewMode,
   MessageRecord,
   MessageRole,
 } from './conversation-types';
@@ -12,6 +13,7 @@ interface ConversationRow {
   id: string;
   title: string | null;
   system_prompt: string | null;
+  view_mode: string;
   created_at: string;
   updated_at: string;
 }
@@ -35,13 +37,14 @@ export class ConversationsRepository {
     this.db.db
       .prepare(
         `INSERT INTO conversations
-           (id, title, system_prompt, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?)`,
+           (id, title, system_prompt, view_mode, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(
         record.id,
         record.title,
         record.systemPrompt,
+        record.viewMode,
         record.createdAt,
         record.updatedAt,
       );
@@ -78,7 +81,11 @@ export class ConversationsRepository {
 
   updateConversation(
     id: string,
-    patch: { title?: string | null; systemPrompt?: string | null },
+    patch: {
+      title?: string | null;
+      systemPrompt?: string | null;
+      viewMode?: ConversationViewMode;
+    },
     updatedAt: string,
   ): void {
     const fields: string[] = [];
@@ -90,6 +97,10 @@ export class ConversationsRepository {
     if (patch.systemPrompt !== undefined) {
       fields.push('system_prompt = ?');
       values.push(patch.systemPrompt);
+    }
+    if (patch.viewMode !== undefined) {
+      fields.push('view_mode = ?');
+      values.push(patch.viewMode);
     }
     if (fields.length === 0) return;
     fields.push('updated_at = ?');
@@ -152,6 +163,7 @@ export class ConversationsRepository {
       id: row.id,
       title: row.title,
       systemPrompt: row.system_prompt,
+      viewMode: (row.view_mode === 'console' ? 'console' : 'chat') as ConversationViewMode,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

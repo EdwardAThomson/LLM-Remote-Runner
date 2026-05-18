@@ -88,9 +88,18 @@ const m004_conversations: Migration = {
   `,
 };
 
+const m005_conversation_view_mode: Migration = {
+  id: '005_conversation_view_mode',
+  sql: `
+    ALTER TABLE conversations
+      ADD COLUMN view_mode TEXT NOT NULL DEFAULT 'chat';
+  `,
+};
+
 export const migrations: Migration[] = [
   m001_initial,
   m002_api_tokens,
   m003_task_webhooks,
   m004_conversations,
+  m005_conversation_view_mode,
 ];

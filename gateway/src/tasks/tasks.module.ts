@@ -14,6 +14,6 @@ import { WebhooksService } from './webhooks.service';
     WebhooksService,
     TasksService,
   ],
-  exports: [TasksService],
+  exports: [TasksService, TasksRepository],
 })
 export class TasksModule {}

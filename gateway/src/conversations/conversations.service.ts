@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { AnyBackend, ChatMessage } from '../adapters';
+import { TasksRepository } from '../tasks/tasks.repository';
 import { TasksService } from '../tasks/tasks.service';
 import { ConversationsRepository } from './conversations.repository';
 import {
@@ -23,6 +24,14 @@ export interface SendMessageResult {
   task_id: string;
 }
 
+interface SeedFromTask {
+  prompt: string;
+  assistantContent: string;
+  taskId: string;
+  backend: AnyBackend;
+  model: string | null;
+}
+
 @Injectable()
 export class ConversationsService {
   private readonly logger = new Logger(ConversationsService.name);
@@ -30,21 +39,98 @@ export class ConversationsService {
   constructor(
     private readonly repo: ConversationsRepository,
     private readonly tasksService: TasksService,
+    private readonly tasksRepository: TasksRepository,
   ) {}
 
   // ---- CRUD ----------------------------------------------------------------
 
-  create(dto: CreateConversationDto): ConversationSummary {
-    const now = new Date().toISOString();
+  async create(dto: CreateConversationDto): Promise<ConversationSummary> {
+    const baseMs = Date.now();
+    const createdAt = new Date(baseMs).toISOString();
+    const id = randomUUID();
+    let title = dto.title?.trim() || null;
+    const systemPrompt = dto.systemPrompt?.trim() || null;
+
+    let seed: SeedFromTask | null = null;
+    if (dto.fromTaskId) {
+      seed = await this.loadSeed(dto.fromTaskId);
+      if (!title) title = deriveTitle(seed.prompt);
+    }
+
+    // When seeding from a task the assistant turn happens "after" the user
+    // turn, so the conversation's updated_at advances by one tick.
+    const updatedAt = seed
+      ? new Date(baseMs + 1).toISOString()
+      : createdAt;
+
+    // Default to console mode when the conversation is seeded from an
+    // agentic CLI task, otherwise chat. Caller can override.
+    const viewMode = dto.viewMode ?? (seed ? 'console' : 'chat');
+
     const record: ConversationSummary = {
-      id: randomUUID(),
-      title: dto.title?.trim() || null,
-      systemPrompt: dto.systemPrompt?.trim() || null,
-      createdAt: now,
-      updatedAt: now,
+      id,
+      title,
+      systemPrompt,
+      viewMode,
+      createdAt,
+      updatedAt,
     };
     this.repo.insertConversation(record);
+
+    if (seed) {
+      this.repo.insertMessage({
+        id: randomUUID(),
+        conversationId: id,
+        role: 'user',
+        content: seed.prompt,
+        taskId: null,
+        backend: null,
+        model: null,
+        createdAt,
+      });
+      this.repo.insertMessage({
+        id: randomUUID(),
+        conversationId: id,
+        role: 'assistant',
+        content: seed.assistantContent,
+        taskId: seed.taskId,
+        backend: seed.backend,
+        model: seed.model,
+        createdAt: updatedAt,
+      });
+      // Link the original task back to this conversation so subsequent
+      // attempts to promote it are caught by the conversationId check in
+      // loadSeed(), and so the UI can swap "Continue" for "Open Conversation".
+      this.tasksRepository.setConversationId(seed.taskId, id);
+    }
+
     return record;
+  }
+
+  private async loadSeed(taskId: string): Promise<SeedFromTask> {
+    let detail;
+    try {
+      detail = await this.tasksService.findDetailOrFail(taskId);
+    } catch {
+      throw new NotFoundException(`Task ${taskId} not found`);
+    }
+    if (detail.conversationId) {
+      throw new BadRequestException(
+        `Task ${taskId} already belongs to a conversation`,
+      );
+    }
+    const assistantContent = detail.logs
+      .filter((l) => (l.stream ?? 'stdout') === 'stdout')
+      .map((l) => l.line)
+      .join('\n')
+      .trim();
+    return {
+      prompt: detail.prompt,
+      assistantContent,
+      taskId: detail.id,
+      backend: detail.backend,
+      model: detail.model ?? null,
+    };
   }
 
   list(opts: { limit?: number; cursor?: string }): {
@@ -76,16 +162,25 @@ export class ConversationsService {
   update(id: string, dto: UpdateConversationDto): ConversationSummary {
     const existing = this.repo.findConversation(id);
     if (!existing) throw new NotFoundException(`Conversation ${id} not found`);
-    if (dto.title === undefined && dto.systemPrompt === undefined) {
-      throw new BadRequestException('Provide title and/or systemPrompt');
+    if (
+      dto.title === undefined &&
+      dto.systemPrompt === undefined &&
+      dto.viewMode === undefined
+    ) {
+      throw new BadRequestException(
+        'Provide title, systemPrompt, and/or viewMode',
+      );
     }
-    const patch: { title?: string | null; systemPrompt?: string | null } = {};
+    const patch: Parameters<typeof this.repo.updateConversation>[1] = {};
     if (dto.title !== undefined) {
       patch.title = dto.title === null ? null : dto.title.trim() || null;
     }
     if (dto.systemPrompt !== undefined) {
       patch.systemPrompt =
         dto.systemPrompt === null ? null : dto.systemPrompt.trim() || null;
+    }
+    if (dto.viewMode !== undefined) {
+      patch.viewMode = dto.viewMode;
     }
     this.repo.updateConversation(id, patch, new Date().toISOString());
     return this.repo.findConversation(id)!;

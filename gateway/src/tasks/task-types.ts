@@ -19,6 +19,8 @@ export interface TaskSummary {
   updatedAt: string;
   exitCode: number | null;
   errorMessage: string | null;
+  /** Set when this task is part of a conversation turn. */
+  conversationId: string | null;
 }
 
 export interface TaskDetail extends TaskSummary {

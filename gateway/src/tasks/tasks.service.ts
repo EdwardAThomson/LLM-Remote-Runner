@@ -61,8 +61,6 @@ interface TaskRecord extends TaskDetail {
   };
   /** Full chat transcript (multi-turn conversations). Adapter prefers this over `prompt`. */
   messages?: ChatMessage[];
-  /** Conversation this task belongs to (one-shot tasks leave this undefined). */
-  conversationId?: string;
 }
 
 @Injectable()
@@ -157,7 +155,7 @@ export class TasksService implements OnModuleInit {
       buffers: { stdout: '', stderr: '' },
       finalized: false,
       messages: internal.messages,
-      conversationId: internal.conversationId,
+      conversationId: internal.conversationId ?? null,
     };
     this.tasks.set(id, record);
 
@@ -652,6 +650,7 @@ export class TasksService implements OnModuleInit {
       updatedAt: task.updatedAt,
       exitCode: task.exitCode,
       errorMessage: task.errorMessage,
+      conversationId: task.conversationId ?? null,
     };
   }
 

@@ -59,6 +59,8 @@ export interface TaskSummary {
   updatedAt: string;
   exitCode: number | null;
   errorMessage: string | null;
+  /** Set when this task is part of a conversation turn. */
+  conversationId?: string | null;
 }
 
 export interface CreateTaskResponse {
@@ -352,10 +354,14 @@ export interface ChatMessage {
   content: string;
 }
 
+export type ConversationViewMode = 'chat' | 'console';
+
 export interface ConversationSummary {
   id: string;
   title: string | null;
   systemPrompt: string | null;
+  /** Preferred render mode for this conversation. Persisted on the row. */
+  viewMode: ConversationViewMode;
   createdAt: string;
   updatedAt: string;
 }
@@ -378,6 +384,14 @@ export interface ConversationDetail extends ConversationSummary {
 export interface CreateConversationPayload {
   title?: string;
   systemPrompt?: string;
+  /**
+   * If set, seed the conversation from this task — its prompt + captured
+   * stdout become the first user/assistant turn. The original task must not
+   * already belong to a conversation.
+   */
+  fromTaskId?: string;
+  /** Default render mode. Server defaults to `console` if `fromTaskId` is set, else `chat`. */
+  viewMode?: ConversationViewMode;
 }
 
 export interface UpdateConversationPayload {
@@ -385,6 +399,7 @@ export interface UpdateConversationPayload {
   title?: string | null;
   /** Use null to clear. */
   systemPrompt?: string | null;
+  viewMode?: ConversationViewMode;
 }
 
 export interface SendMessagePayload {

@@ -1,5 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { ConversationViewMode } from '../conversation-types';
+
+const VALID_VIEW_MODES: ConversationViewMode[] = ['chat', 'console'];
 
 export class UpdateConversationDto {
   @ApiPropertyOptional({
@@ -23,4 +26,15 @@ export class UpdateConversationDto {
   @IsString()
   @MaxLength(8192)
   systemPrompt?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Switch the render mode (chat | console). Persisted on the conversation row.',
+    enum: VALID_VIEW_MODES,
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(VALID_VIEW_MODES, {
+    message: `viewMode must be one of: ${VALID_VIEW_MODES.join(', ')}`,
+  })
+  viewMode?: ConversationViewMode;
 }

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   AnyBackend,
   cancelTask,
+  createConversation,
   getTask,
   streamTask,
   TaskDetail as TaskDetailType,
@@ -39,6 +40,7 @@ export default function TaskDetailView({ taskId }: TaskDetailProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isPromoting, setIsPromoting] = useState(false);
   const streamCleanup = useRef<(() => void) | undefined>();
   const logsPanelRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
@@ -147,12 +149,30 @@ export default function TaskDetailView({ taskId }: TaskDetailProps) {
     navigate(`/tasks/new?${params.toString()}`);
   };
 
+  const handleContinueAsConversation = async () => {
+    if (!task) return;
+    setIsPromoting(true);
+    setLoadError(null);
+    try {
+      const conv = await createConversation({ fromTaskId: task.id });
+      // Backend already defaults to console mode when seeding from a task —
+      // no need for the ?view= URL hint anymore.
+      navigate(`/conversations/${conv.id}`);
+    } catch (err) {
+      setLoadError(
+        err instanceof Error ? err.message : 'Failed to create conversation',
+      );
+    } finally {
+      setIsPromoting(false);
+    }
+  };
+
   return (
     <>
       <Header />
       <div className="task-detail">
         <div className="task-detail-back">
-          <Link to="/" className="link-button">← Dashboard</Link>
+          <Link to="/tasks" className="link-button">← Tasks</Link>
         </div>
 
         {loading && !task ? <p>Loading…</p> : null}
@@ -197,13 +217,34 @@ export default function TaskDetailView({ taskId }: TaskDetailProps) {
                   {isCancelling ? 'Cancelling…' : 'Cancel Task'}
                 </button>
               ) : (
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleRunAgain}
-                >
-                  Run Again
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleRunAgain}
+                  >
+                    Run Again
+                  </button>
+                  {task.conversationId ? (
+                    <Link
+                      to={`/conversations/${task.conversationId}`}
+                      className="secondary-button"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      Open Conversation
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={handleContinueAsConversation}
+                      disabled={isPromoting}
+                      title="Seed a new conversation with this task as the first turn"
+                    >
+                      {isPromoting ? 'Creating…' : 'Continue as Conversation'}
+                    </button>
+                  )}
+                </>
               )}
               <button
                 type="button"
