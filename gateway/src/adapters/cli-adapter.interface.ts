@@ -105,4 +105,10 @@ export interface CliAdapter {
    * Get the binary path for this adapter
    */
   getBinPath(): string;
+
+  /**
+   * Default model this adapter would invoke when none is specified.
+   * `undefined` for CLIs that don't accept a model flag (Codex, Claude Code).
+   */
+  getDefaultModel(): string | undefined;
 }

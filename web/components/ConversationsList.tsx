@@ -136,6 +136,7 @@ export default function ConversationsList() {
                 <tr>
                   <th>Title</th>
                   <th>System prompt</th>
+                  <th>Last used</th>
                   <th>Last updated</th>
                   <th aria-label="Actions"></th>
                 </tr>
@@ -150,6 +151,18 @@ export default function ConversationsList() {
                     </td>
                     <td className="task-prompt" title={conv.systemPrompt ?? ''}>
                       {conv.systemPrompt ? truncate(conv.systemPrompt, 60) : '—'}
+                    </td>
+                    <td className="task-model">
+                      {conv.lastBackend ? (
+                        <span>
+                          {conv.lastBackend}
+                          {conv.lastModel ? (
+                            <span style={{ color: '#94a3b8' }}> · {conv.lastModel}</span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td>{formatRelativeTime(conv.updatedAt)}</td>
                     <td>

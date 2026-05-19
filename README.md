@@ -175,14 +175,12 @@ Run both services in separate terminals:
 
 **Terminal 1 - Backend API:**
 ```bash
-cd gateway
-pnpm dev
+cd gateway && pnpm dev
 ```
 
 **Terminal 2 - Web UI:**
 ```bash
-cd web
-pnpm dev
+cd web && pnpm dev
 ```
 
 ### 5. Create Default Workspace (Optional)

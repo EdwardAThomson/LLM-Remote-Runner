@@ -18,6 +18,11 @@ interface ConversationRow {
   updated_at: string;
 }
 
+interface ConversationListRow extends ConversationRow {
+  last_backend: string | null;
+  last_model: string | null;
+}
+
 interface MessageRow {
   id: string;
   conversation_id: string;
@@ -66,17 +71,31 @@ export class ConversationsRepository {
     const where: string[] = [];
     const params: unknown[] = [];
     if (opts.cursor) {
-      where.push('(updated_at < ? OR (updated_at = ? AND id < ?))');
+      where.push('(c.updated_at < ? OR (c.updated_at = ? AND c.id < ?))');
       params.push(opts.cursor.updatedAt, opts.cursor.updatedAt, opts.cursor.id);
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-    const sql = `SELECT * FROM conversations ${whereSql}
-                 ORDER BY updated_at DESC, id DESC LIMIT ?`;
+    // Join with the most recent assistant message per conversation so the
+    // dashboard can render last-used backend/model without N+1 fetches.
+    const sql = `
+      SELECT c.*,
+             m.backend AS last_backend,
+             m.model   AS last_model
+        FROM conversations c
+        LEFT JOIN messages m ON m.id = (
+          SELECT id FROM messages
+           WHERE conversation_id = c.id AND role = 'assistant'
+           ORDER BY created_at DESC, id DESC
+           LIMIT 1
+        )
+        ${whereSql}
+        ORDER BY c.updated_at DESC, c.id DESC
+        LIMIT ?`;
     params.push(opts.limit);
     return this.db.db
-      .prepare<unknown[], ConversationRow>(sql)
+      .prepare<unknown[], ConversationListRow>(sql)
       .all(...params)
-      .map((row) => this.rowToSummary(row));
+      .map((row) => this.rowToListSummary(row));
   }
 
   updateConversation(
@@ -166,6 +185,14 @@ export class ConversationsRepository {
       viewMode: (row.view_mode === 'console' ? 'console' : 'chat') as ConversationViewMode,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+    };
+  }
+
+  private rowToListSummary(row: ConversationListRow): ConversationSummary {
+    return {
+      ...this.rowToSummary(row),
+      lastBackend: (row.last_backend ?? null) as AnyBackend | null,
+      lastModel: row.last_model,
     };
   }
 

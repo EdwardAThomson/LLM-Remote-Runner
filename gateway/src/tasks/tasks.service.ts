@@ -125,24 +125,35 @@ export class TasksService implements OnModuleInit {
       });
     }
     
-    // Get adapter info based on backend type
+    // Get adapter info based on backend type. While we're here, snapshot the
+    // *effective* model: if the caller didn't override it, fall back to the
+    // adapter's configured default. This keeps the transcript honest — a
+    // Gemini turn says "gemini-3-flash-preview" instead of "—" even when the
+    // user accepted the default. Codex / Claude CLI have no model knob and
+    // their adapters return undefined, so those stay null.
     let cliAdapter: CliAdapter | undefined;
     let displayName: string;
-    
+    let adapterDefaultModel: string | undefined;
+
     if (this.isApiBackend(backend)) {
       const apiAdapter = this.apiAdapterFactory.getAdapter(backend as 'openai-api' | 'anthropic-api' | 'gemini-api');
       displayName = apiAdapter.displayName;
+      adapterDefaultModel = apiAdapter.getDefaultModel();
     } else {
       cliAdapter = this.adapterFactory.getAdapter(backend as 'codex' | 'claude-cli' | 'gemini-cli');
       displayName = cliAdapter.displayName;
+      adapterDefaultModel = cliAdapter.getDefaultModel?.();
     }
-    
+
+    const dtoModel = dto.model?.trim();
+    const effectiveModel = dtoModel || adapterDefaultModel || null;
+
     const record: TaskRecord = {
       id,
       prompt: dto.prompt,
       cwd,
       backend,
-      model: dto.model ?? null,
+      model: effectiveModel,
       state: 'queued',
       exitCode: null,
       errorMessage: null,

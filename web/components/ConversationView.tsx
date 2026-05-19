@@ -11,6 +11,7 @@ import {
   updateConversation,
 } from '../lib/sdk';
 import Header from './Header';
+import MarkdownContent from './MarkdownContent';
 
 const BACKENDS: { value: AnyBackend; label: string }[] = [
   { value: 'codex', label: 'Codex CLI' },
@@ -371,7 +372,12 @@ export default function ConversationView() {
 function ChatBubble({ message }: { message: MessageRecord }) {
   return (
     <div className="chat-bubble">
-      <pre className="chat-content">{message.content}</pre>
+      {message.role === 'assistant' ? (
+        <MarkdownContent content={message.content} />
+      ) : (
+        // User input renders verbatim — what you typed is what was sent.
+        <pre className="chat-content">{message.content}</pre>
+      )}
       <div className="chat-meta-row">
         <span className="chat-role">{message.role}</span>
         {message.backend ? (

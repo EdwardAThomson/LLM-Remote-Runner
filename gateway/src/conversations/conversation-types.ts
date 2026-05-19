@@ -16,6 +16,13 @@ export interface ConversationSummary {
   viewMode: ConversationViewMode;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Backend / model used on the most recent assistant turn — populated by the
+   * list query so the dashboard can show a "Gemini CLI · gemini-3-flash-preview"
+   * label without N+1 fetching. Null for empty conversations.
+   */
+  lastBackend?: AnyBackend | null;
+  lastModel?: string | null;
 }
 
 export interface MessageRecord {

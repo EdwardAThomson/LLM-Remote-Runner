@@ -1363,3 +1363,120 @@ a {
   color: #fbbf24;
   border-left-color: #f59e0b;
 }
+
+/* ---- Markdown rendering (assistant chat-mode messages) ----------------- */
+
+.markdown {
+  color: #1e293b;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.markdown > *:first-child { margin-top: 0; }
+.markdown > *:last-child  { margin-bottom: 0; }
+
+.markdown p {
+  margin: 0.5rem 0;
+}
+
+.markdown h1, .markdown h2, .markdown h3,
+.markdown h4, .markdown h5, .markdown h6 {
+  margin: 0.85rem 0 0.4rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.markdown h1 { font-size: 1.4rem; }
+.markdown h2 { font-size: 1.2rem; }
+.markdown h3 { font-size: 1.05rem; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 1rem; }
+
+.markdown ul, .markdown ol {
+  margin: 0.4rem 0;
+  padding-left: 1.4rem;
+}
+
+.markdown li {
+  margin: 0.2rem 0;
+}
+
+.markdown li > p {
+  margin: 0.2rem 0;
+}
+
+.markdown a {
+  color: #4f46e5;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.markdown a:hover {
+  color: #4338ca;
+}
+
+.markdown strong { font-weight: 700; }
+.markdown em     { font-style: italic; }
+
+.markdown code {
+  font-family: 'Fira Mono', 'SFMono-Regular', Consolas, monospace;
+  font-size: 0.85em;
+  background-color: rgba(15, 23, 42, 0.07);
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+}
+
+.markdown pre {
+  margin: 0.6rem 0;
+  padding: 0.8rem 1rem;
+  background-color: #0f172a;
+  color: #e2e8f0;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  border-radius: 0;
+}
+
+.markdown blockquote {
+  margin: 0.6rem 0;
+  padding: 0.4rem 0.9rem;
+  border-left: 3px solid #cbd5e1;
+  color: #475569;
+  font-style: italic;
+}
+
+.markdown table {
+  margin: 0.6rem 0;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.markdown th, .markdown td {
+  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.65rem;
+  text-align: left;
+}
+
+.markdown th {
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+
+.markdown hr {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 0.85rem 0;
+}
+
+/* Inside user-message bubbles the assistant tint is wrong — but users
+   render as plain <pre>, not markdown. Nothing to override. */

@@ -364,6 +364,13 @@ export interface ConversationSummary {
   viewMode: ConversationViewMode;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Backend / model from the most recent assistant turn, populated by list
+   * queries so dashboards don't need to fetch each conversation's transcript
+   * just to render a label. Null for empty conversations.
+   */
+  lastBackend?: AnyBackend | null;
+  lastModel?: string | null;
 }
 
 export interface MessageRecord {
