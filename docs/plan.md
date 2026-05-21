@@ -7,7 +7,7 @@
 
 * Run the **Codex CLI** on a server and expose it safely via a Gateway API.
 * Submit tasks (prompts/commands), **stream progress in real time** (SSE/WS), store history.
-* Ship **Web (Next.js)** and **Mobile (React Native/Expo)** clients with a shared TypeScript SDK.
+* Ship **Web (React + Vite SPA)** and **Mobile (React Native/Expo)** clients with a shared TypeScript SDK.
 * Support multiple concurrent users, rate limits, and audit logging.
 
 **Non-Goals (initial release)**
@@ -21,7 +21,7 @@
 ## 1) Architecture at a Glance
 
 ```
-[ Web (Next.js) ]     [ Mobile (Expo) ]
+[ Web (React+Vite) ]  [ Mobile (Expo) ]
         \              /
          \            /
          [@yourorg/codex-sdk (TS)]
@@ -100,8 +100,8 @@ codex-remote-runner/
 │  ├─ src/index.ts
 │  ├─ tsconfig.json
 │  └─ package.json
-├─ web/                     # Next.js (App Router)
-│  ├─ app/(routes)/
+├─ web/                     # React 18 + Vite SPA
+│  ├─ src/                  # entry (main.tsx, App.tsx with react-router routes)
 │  ├─ components/
 │  ├─ lib/sdk.ts
 │  └─ package.json
@@ -168,7 +168,7 @@ codex-remote-runner/
 * **T-031**: `streamTask(taskId, { onStatus, onLog, onDone, onError })` using SSE.
 * **T-032**: Token injection, baseURL configuration, exponential backoff.
 
-### 5.5 Web App (Next.js)
+### 5.5 Web App (React + Vite)
 
 * **T-040**: Auth UI (username/password or magic link placeholder).
 * **T-041**: **TaskComposer** (prompt + advanced options).

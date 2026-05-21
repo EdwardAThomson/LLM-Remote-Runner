@@ -262,7 +262,7 @@ rm scripts/setup-auth.ts
 
 ### Can't access login page
 - Verify web app is running on correct port
-- Check `NEXT_PUBLIC_GATEWAY_URL` in `web/.env.local`
+- Check `VITE_GATEWAY_URL` in `web/.env.local`
 - Ensure gateway is running
 
 ## Future Enhancements

@@ -1,13 +1,14 @@
 # Web Client
 
-Next.js App Router frontend for LLM Remote Runner. Includes a basic task console that calls the shared SDK to create and stream tasks across multiple LLM backends.
+React 18 + Vite SPA for LLM Remote Runner. Uses `react-router-dom` for client-side routing and the shared `@codex/sdk` package to create, stream, and persist tasks/conversations across multiple LLM backends.
 
 ## Environment
 
-Set `NEXT_PUBLIC_GATEWAY_URL` to point at the gateway API (defaults to `http://localhost:3000`).
+Set `VITE_GATEWAY_URL` in `web/.env.local` to point at the gateway API (defaults to `http://localhost:3000`).
 
 ## Scripts
 
-- `pnpm dev` – start the development server.
-- `pnpm build` – create an optimized production build.
-- `pnpm start` – run the built app.
+- `pnpm dev` – start the Vite dev server on port 3001 (strictPort).
+- `pnpm build` – typecheck and produce a production build in `dist/`.
+- `pnpm preview` – serve the built app from `dist/`.
+- `pnpm typecheck` – run `tsc --noEmit`.

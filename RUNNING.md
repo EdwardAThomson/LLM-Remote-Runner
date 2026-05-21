@@ -37,12 +37,13 @@ TASK_HEARTBEAT_MS=15000
 - `CODEX_BIN_PATH` should point to the Codex CLI binary (absolute path recommended).
 - The web app expects a JWT for API calls. For quick testing you can hard-code a token signed with `JWT_SECRET` and include it in requests (see “Authentication” below).
 
-For the web client set `NEXT_PUBLIC_GATEWAY_URL` in `web/.env.local` if the gateway runs on a non-default host or port:
+For the web client set `VITE_GATEWAY_URL` in `web/.env.local` if the gateway runs on a non-default host or port:
 
 ```
-NEXT_PUBLIC_GATEWAY_URL=http://localhost:3000
-NEXT_PUBLIC_AUTH_TOKEN=<your test JWT>
+VITE_GATEWAY_URL=http://localhost:3000
 ```
+
+Auth happens through the login page in the browser; there is no longer a `NEXT_PUBLIC_AUTH_TOKEN` env var.
 
 ## 4. Start the Gateway
 
@@ -60,7 +61,7 @@ In a new terminal:
 pnpm --filter @codex/web dev
 ```
 
-Next.js will serve the UI on `http://localhost:3000` (or 3001 if the port is occupied). When prompted for auth, the web app sends the token from `NEXT_PUBLIC_AUTH_TOKEN` as a Bearer header and as a `token` query param for SSE compatibility.
+Vite will serve the UI on `http://localhost:3001` (strictPort — the dev server fails to start if 3001 is taken). Log in via the password form; the session token is stored as a cookie and forwarded as a Bearer header on API calls and as a `token` query param for SSE.
 
 ### Manual API Testing
 
@@ -103,7 +104,7 @@ Since SSE isn’t polyfilled by default, streaming will show placeholder message
 
 - `pnpm --filter @codex/gateway test` – Jest suite mocking Codex to ensure status/log/heartbeat/cancel flows.
 - `pnpm --filter @codex/gateway build` – TypeScript build of the gateway.
-- `pnpm --filter @codex/web build` – Verify the Next.js build.
+- `pnpm --filter @codex/web build` – Typecheck and verify the Vite production build.
 
 ## 8. Troubleshooting
 
@@ -111,7 +112,7 @@ Since SSE isn’t polyfilled by default, streaming will show placeholder message
 | --- | --- |
 | `codex: command not found` | Update `CODEX_BIN_PATH` to the absolute location or ensure the binary is on `PATH` for the gateway process. |
 | Gateway rejects requests with 401 | Ensure the JWT is signed with `JWT_SECRET` and includes a `sub` claim. |
-| Web console shows “Stream error” | Check the gateway logs; confirm SSE URL includes `token` query param and that the gateway is reachable at `NEXT_PUBLIC_GATEWAY_URL`. |
+| Web console shows “Stream error” | Check the gateway logs; confirm SSE URL includes `token` query param and that the gateway is reachable at `VITE_GATEWAY_URL`. |
 | Heartbeats stop updating | The task likely completed or the gateway restarted. Relaunch the gateway or resubmit the task. |
 
 ## 9. Next Steps / Roadmap

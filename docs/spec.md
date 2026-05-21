@@ -96,11 +96,11 @@ Clients connect via the Gateway API to submit tasks and view results.
 
 #### Technologies
 
-| Platform | Framework               | Notes                       |
-| -------- | ----------------------- | --------------------------- |
-| Web      | **Next.js (React 18)**  | Installable as a PWA        |
-| Mobile   | **React Native (Expo)** | Shares SDK with web         |
-| Shared   | **TypeScript SDK**      | Provides REST & SSE helpers |
+| Platform | Framework                          | Notes                       |
+| -------- | ---------------------------------- | --------------------------- |
+| Web      | **React 18 + Vite (SPA)**          | `react-router-dom` v7 for client-side routing |
+| Mobile   | **React Native (Expo)**            | Shares SDK with web; experimental |
+| Shared   | **TypeScript SDK** (`@codex/sdk`)  | Provides REST & SSE helpers |
 
 ---
 

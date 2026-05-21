@@ -6,12 +6,13 @@ This project was adapted from my other project: [Codex Remote Runner](https://gi
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10.0-red.svg)](https://nestjs.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-14-black.svg)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646cff.svg)](https://vitejs.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
 
-LLM Remote Runner is a full-stack application that provides a secure, web-based interface for executing LLM tasks through multiple backends. It features password-protected authentication, real-time streaming output, and a modern React UI.
+LLM Remote Runner is a full-stack application that provides a secure, web-based interface for executing LLM tasks through multiple backends. It features password-protected authentication, real-time streaming output, multi-turn conversations, and a React SPA UI.
 
 ### Supported Backends
 
@@ -35,20 +36,21 @@ LLM Remote Runner is a full-stack application that provides a secure, web-based 
 
 ### Key Features
 
-- 🔐 **Secure Authentication** - Password-based login with bcrypt hashing and JWT sessions
+- 🔐 **Secure Authentication** - Password-based login with bcrypt hashing, JWT sessions, and revocable API tokens
 - 📡 **Real-time Streaming** - Server-Sent Events (SSE) for live task output
-- 🎯 **Task Management** - Create, monitor, and cancel LLM tasks
-- 🌐 **Modern UI** - Clean, responsive Next.js interface with TailwindCSS
-- 🔧 **Flexible Configuration** - Customizable workspace directories and paths
-- 📦 **Monorepo Architecture** - Well-organized codebase with shared SDK
+- 🎯 **Task Management** - Create, monitor, cancel, and persist LLM tasks (SQLite history)
+- 💬 **Conversations** - Multi-turn chat sessions across CLI and API backends with per-conversation system prompts
+- 🌐 **React UI** - Vite-powered single-page app with client-side routing
+- 🔧 **Flexible Configuration** - Customizable workspace allowlist and per-backend bin paths / models
+- 📦 **Monorepo Architecture** - pnpm workspace with shared TypeScript SDK
 
 ## Architecture
 
 This monorepo contains:
 
-- **`gateway/`** – NestJS REST API with authentication and task management
-- **`sdk/`** – Shared TypeScript SDK for API clients
-- **`web/`** – Next.js web application with App Router
+- **`gateway/`** – NestJS REST API with authentication, task management, and conversations (SQLite persistence via `better-sqlite3`)
+- **`sdk/`** – Shared TypeScript SDK: types + `fetch`/`EventSource` wrappers for tasks and conversations
+- **`web/`** – React 18 + Vite SPA with `react-router-dom` v7
 - **`mobile/`** – Expo React Native mobile app (experimental)
 - **`infra/`** – Docker Compose and infrastructure configuration
 - **`docs/`** – Comprehensive documentation
@@ -286,7 +288,7 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `NEXT_PUBLIC_GATEWAY_URL` | Gateway API URL | `http://localhost:3000` | Yes |
+| `VITE_GATEWAY_URL` | Gateway API URL (read via `import.meta.env`) | `http://localhost:3000` | No |
 
 ## Development
 
@@ -296,16 +298,19 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 LLM-Remote-Runner/
 ├── gateway/          # NestJS backend API
 │   ├── src/
-│   │   ├── auth/     # Authentication module
-│   │   ├── tasks/    # Task management module
-│   │   └── config/   # Configuration
-│   └── scripts/      # Setup scripts
-├── web/              # Next.js frontend
-│   ├── app/          # App Router pages
-│   ├── components/   # React components
-│   └── lib/          # Utilities and SDK wrapper
+│   │   ├── adapters/       # CLI + API backend adapters and factories
+│   │   ├── auth/           # JWT sessions + revocable API tokens
+│   │   ├── conversations/  # Multi-turn chat sessions
+│   │   ├── db/             # SQLite (better-sqlite3) + in-process migrations
+│   │   ├── tasks/          # Task lifecycle, subprocess env, workspace allowlist
+│   │   └── config/         # Env validation and typed config
+│   └── scripts/      # Setup scripts (delete setup-auth.ts after first run)
+├── web/              # React 18 + Vite SPA
+│   ├── src/          # Entry point, App routes, global styles
+│   ├── components/   # React components (Dashboard, ConversationView, …)
+│   └── lib/          # SDK wrapper, auth helpers, token storage
 ├── sdk/              # Shared TypeScript SDK
-├── mobile/           # React Native app (experimental)
+├── mobile/           # React Native / Expo app (experimental)
 ├── infra/            # Infrastructure config
 └── docs/             # Documentation
 ```
@@ -353,9 +358,9 @@ pnpm --filter @codex/web build
 
   ### Frontend dependency notes
 
-  The web UI currently uses **React 18** and **Next.js 14** (see `web/package.json`). Known issues like **CVE-2025-55182**, which target **React 19.x Server Components** and frameworks embedding those RSC packages, do not apply to this setup.
+  The web UI is a **React 18** SPA built with **Vite 8** (see `web/package.json`) — it does **not** use Next.js or React Server Components. Known issues like **CVE-2025-55182**, which target **React 19.x Server Components** and frameworks embedding those RSC packages, do not apply to this setup.
 
-  If you upgrade to **React 19 / Next 19** in the future, re-check the relevant security advisories and ensure you are on patched versions before deploying.
+  If you upgrade to **React 19** or migrate to an RSC-based framework in the future, re-check the relevant security advisories and ensure you are on patched versions before deploying.
   
   ## Documentation
 
@@ -387,7 +392,7 @@ Check that:
 
 Verify:
 - Gateway is running on port 3000
-- `NEXT_PUBLIC_GATEWAY_URL` in `web/.env.local` is correct
+- `VITE_GATEWAY_URL` in `web/.env.local` is correct
 - No CORS issues (check browser console)
 
 ### Task fails with "directory not found" or permission errors
@@ -435,9 +440,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- Built with [NestJS](https://nestjs.com/), [Next.js](https://nextjs.org/), and [Codex CLI](https://github.com/openai/codex-cli)
+- Built with [NestJS](https://nestjs.com/), [React](https://react.dev/), [Vite](https://vitejs.dev/), and the various LLM CLIs/APIs listed above
 - Authentication powered by [bcrypt](https://github.com/kelektiv/node.bcrypt.js) and [Passport](http://www.passportjs.org/)
-- UI styled with [TailwindCSS](https://tailwindcss.com/)
+- SQLite persistence via [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
 
 
 ---

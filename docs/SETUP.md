@@ -36,7 +36,7 @@ Tokens are validated with the shared secret using the standard Bearer scheme. We
 
 `TASK_HEARTBEAT_MS` controls how frequently the gateway emits SSE heartbeat events (defaults to 15 seconds). Lower the value when running behind aggressive proxies that close idle connections.
 
-For the web client set `NEXT_PUBLIC_GATEWAY_URL` if the gateway runs on a different origin. For mobile use `EXPO_PUBLIC_GATEWAY_URL`.
+For the web client set `VITE_GATEWAY_URL` in `web/.env.local` if the gateway runs on a different origin. For mobile use `EXPO_PUBLIC_GATEWAY_URL`.
 
 ## Running Locally
 
