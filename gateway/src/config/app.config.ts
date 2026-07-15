@@ -24,6 +24,18 @@ export interface AppConfig {
   geminiApiKey: string;
   geminiApiDefaultModel: string;
   geminiApiBaseUrl?: string;
+  // OpenRouter (OpenAI-compatible router)
+  openRouterApiKey: string;
+  openRouterDefaultModel: string;
+  openRouterBaseUrl?: string;
+  // Venice (OpenAI-compatible host)
+  veniceApiKey: string;
+  veniceDefaultModel: string;
+  veniceBaseUrl?: string;
+  // Self-hosted / local (OpenAI-compatible). Key optional; base URL required to enable.
+  hostedApiKey: string;
+  hostedDefaultModel: string;
+  hostedBaseUrl?: string;
   apiTimeoutMs: number;
   // Other settings
   redisUrl: string;
@@ -48,6 +60,27 @@ function parseList(value: string | undefined): string[] {
     .split(',')
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
+}
+
+/**
+ * Resolve the self-hosted OpenAI-compatible base URL.
+ *
+ * Mirrors the Python `llm-backends` env contract: prefer a full
+ * `HOSTED_LLM_BASE_URL`, otherwise assemble `http://{HOSTED_LLM_URL}:{HOSTED_LLM_PORT}/v1`
+ * when both host and port are present. Returns undefined when unconfigured so
+ * the adapter is not registered.
+ */
+function resolveHostedBaseUrl(): string | undefined {
+  const full = process.env.HOSTED_LLM_BASE_URL?.trim();
+  if (full) {
+    return full;
+  }
+  const url = process.env.HOSTED_LLM_URL?.trim();
+  const port = process.env.HOSTED_LLM_PORT?.trim();
+  if (url && port) {
+    return `http://${url}:${port}/v1`;
+  }
+  return undefined;
 }
 
 /**
@@ -80,6 +113,18 @@ export default registerAs<AppConfig>('app', () => ({
   geminiApiKey: process.env.GEMINI_API_KEY ?? '',
   geminiApiDefaultModel: process.env.GEMINI_API_DEFAULT_MODEL ?? 'gemini-3-flash-preview',
   geminiApiBaseUrl: process.env.GEMINI_API_BASE_URL,
+  // OpenRouter (env names match the Python llm-backends package)
+  openRouterApiKey: process.env.OPENROUTER_API_KEY ?? '',
+  openRouterDefaultModel: process.env.OPENROUTER_MODEL ?? 'deepseek/deepseek-chat',
+  openRouterBaseUrl: process.env.OPENROUTER_BASE_URL,
+  // Venice
+  veniceApiKey: process.env.VENICE_API_KEY ?? '',
+  veniceDefaultModel: process.env.VENICE_MODEL ?? 'venice-uncensored',
+  veniceBaseUrl: process.env.VENICE_BASE_URL,
+  // Self-hosted / local (HOSTED_LLM_* per the Python package)
+  hostedApiKey: process.env.HOSTED_LLM_API_KEY ?? '',
+  hostedDefaultModel: process.env.HOSTED_LLM_MODEL ?? '',
+  hostedBaseUrl: resolveHostedBaseUrl(),
   apiTimeoutMs: Number(process.env.API_TIMEOUT_MS ?? 120000),
   // Other settings
   redisUrl: process.env.REDIS_URL ?? '',

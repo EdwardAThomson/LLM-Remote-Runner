@@ -52,6 +52,9 @@ export class BackendsHealthController {
       'openai-api',
       'anthropic-api',
       'gemini-api',
+      'openrouter-api',
+      'venice-api',
+      'hosted-api',
     ];
 
     const api: ApiBackendHealth[] = allApiBackends.map((backend) => ({

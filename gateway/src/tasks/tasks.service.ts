@@ -14,6 +14,7 @@ import {
   AdapterFactory,
   AnyBackend,
   ApiAdapterFactory,
+  ApiBackend,
   CliAdapter,
 } from '../adapters';
 import { ChatMessage } from '../adapters/chat-message';
@@ -95,7 +96,7 @@ export class TasksService implements OnModuleInit {
    * Check if a backend is an API backend
    */
   private isApiBackend(backend: AnyBackend): boolean {
-    return ['openai-api', 'anthropic-api', 'gemini-api'].includes(backend);
+    return ApiAdapterFactory.isApiBackend(backend);
   }
 
   async create(
@@ -136,7 +137,7 @@ export class TasksService implements OnModuleInit {
     let adapterDefaultModel: string | undefined;
 
     if (this.isApiBackend(backend)) {
-      const apiAdapter = this.apiAdapterFactory.getAdapter(backend as 'openai-api' | 'anthropic-api' | 'gemini-api');
+      const apiAdapter = this.apiAdapterFactory.getAdapter(backend as ApiBackend);
       displayName = apiAdapter.displayName;
       adapterDefaultModel = apiAdapter.getDefaultModel();
     } else {
@@ -396,7 +397,7 @@ export class TasksService implements OnModuleInit {
    * Run an API-based task with streaming
    */
   private async runApiTask(task: TaskRecord, systemPrompt?: string) {
-    const apiBackend = task.backend as 'openai-api' | 'anthropic-api' | 'gemini-api';
+    const apiBackend = task.backend as ApiBackend;
     
     try {
       const adapter = this.apiAdapterFactory.getAdapter(apiBackend);

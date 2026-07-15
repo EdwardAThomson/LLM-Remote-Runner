@@ -9,7 +9,13 @@ import { ChatMessage } from './chat-message';
 /**
  * Supported API backends
  */
-export type ApiBackend = 'openai-api' | 'anthropic-api' | 'gemini-api';
+export type ApiBackend =
+  | 'openai-api'
+  | 'anthropic-api'
+  | 'gemini-api'
+  | 'openrouter-api'
+  | 'venice-api'
+  | 'hosted-api';
 
 /**
  * Configuration for API adapters

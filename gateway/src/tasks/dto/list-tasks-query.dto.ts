@@ -11,6 +11,9 @@ const VALID_BACKENDS: AnyBackend[] = [
   'openai-api',
   'anthropic-api',
   'gemini-api',
+  'openrouter-api',
+  'venice-api',
+  'hosted-api',
 ];
 
 const VALID_STATES: TaskState[] = [

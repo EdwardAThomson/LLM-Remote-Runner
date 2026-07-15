@@ -4,6 +4,9 @@ import { ApiAdapter, ApiBackend, ApiConfig } from './api-adapter.interface';
 import { AnthropicApiAdapter } from './anthropic-api.adapter';
 import { GeminiApiAdapter } from './gemini-api.adapter';
 import { OpenAiApiAdapter } from './openai-api.adapter';
+import { OpenRouterApiAdapter } from './openrouter-api.adapter';
+import { VeniceApiAdapter } from './venice-api.adapter';
+import { HostedApiAdapter } from './hosted-api.adapter';
 
 /**
  * Factory for creating and managing API adapter instances
@@ -38,6 +41,28 @@ export class ApiAdapterFactory {
       this.adapters.set('gemini-api', new GeminiApiAdapter(geminiConfig));
       this.logger.log('Gemini API adapter initialized');
     }
+
+    // OpenRouter (OpenAI-compatible router)
+    const openRouterConfig = this.getOpenRouterConfig();
+    if (openRouterConfig.apiKey) {
+      this.adapters.set('openrouter-api', new OpenRouterApiAdapter(openRouterConfig));
+      this.logger.log('OpenRouter API adapter initialized');
+    }
+
+    // Venice (OpenAI-compatible host)
+    const veniceConfig = this.getVeniceConfig();
+    if (veniceConfig.apiKey) {
+      this.adapters.set('venice-api', new VeniceApiAdapter(veniceConfig));
+      this.logger.log('Venice API adapter initialized');
+    }
+
+    // Self-hosted / local (OpenAI-compatible). Keyed on a base URL rather than a
+    // key: local servers often need no key.
+    const hostedConfig = this.getHostedConfig();
+    if (hostedConfig.baseUrl) {
+      this.adapters.set('hosted-api', new HostedApiAdapter(hostedConfig));
+      this.logger.log('Self-hosted API adapter initialized');
+    }
   }
   
   private getOpenAiConfig(): ApiConfig {
@@ -63,6 +88,33 @@ export class ApiAdapterFactory {
       apiKey: this.configService.get<string>('app.geminiApiKey', ''),
       defaultModel: this.configService.get<string>('app.geminiApiDefaultModel', 'gemini-3-flash-preview'),
       baseUrl: this.configService.get<string>('app.geminiApiBaseUrl'),
+      timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
+    };
+  }
+
+  private getOpenRouterConfig(): ApiConfig {
+    return {
+      apiKey: this.configService.get<string>('app.openRouterApiKey', ''),
+      defaultModel: this.configService.get<string>('app.openRouterDefaultModel', 'deepseek/deepseek-chat'),
+      baseUrl: this.configService.get<string>('app.openRouterBaseUrl'),
+      timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
+    };
+  }
+
+  private getVeniceConfig(): ApiConfig {
+    return {
+      apiKey: this.configService.get<string>('app.veniceApiKey', ''),
+      defaultModel: this.configService.get<string>('app.veniceDefaultModel', 'venice-uncensored'),
+      baseUrl: this.configService.get<string>('app.veniceBaseUrl'),
+      timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
+    };
+  }
+
+  private getHostedConfig(): ApiConfig {
+    return {
+      apiKey: this.configService.get<string>('app.hostedApiKey', ''),
+      defaultModel: this.configService.get<string>('app.hostedDefaultModel', ''),
+      baseUrl: this.configService.get<string>('app.hostedBaseUrl'),
       timeoutMs: this.configService.get<number>('app.apiTimeoutMs', 120000),
     };
   }
@@ -99,6 +151,13 @@ export class ApiAdapterFactory {
    * Check if a backend string is an API backend
    */
   static isApiBackend(backend: string): backend is ApiBackend {
-    return ['openai-api', 'anthropic-api', 'gemini-api'].includes(backend);
+    return [
+      'openai-api',
+      'anthropic-api',
+      'gemini-api',
+      'openrouter-api',
+      'venice-api',
+      'hosted-api',
+    ].includes(backend);
   }
 }

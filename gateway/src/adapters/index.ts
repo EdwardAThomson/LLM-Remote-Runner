@@ -49,13 +49,17 @@ export {
   ApiStreamChunk,
 } from './api-adapter.interface';
 
-// API base adapter
+// API base adapters
 export { BaseApiAdapter } from './base-api.adapter';
+export { OpenAiCompatibleApiAdapter } from './openai-compatible-api.adapter';
 
 // API concrete adapters
 export { OpenAiApiAdapter } from './openai-api.adapter';
 export { AnthropicApiAdapter } from './anthropic-api.adapter';
 export { GeminiApiAdapter } from './gemini-api.adapter';
+export { OpenRouterApiAdapter } from './openrouter-api.adapter';
+export { VeniceApiAdapter } from './venice-api.adapter';
+export { HostedApiAdapter } from './hosted-api.adapter';
 
 // API factory
 export { ApiAdapterFactory } from './api-adapter.factory';

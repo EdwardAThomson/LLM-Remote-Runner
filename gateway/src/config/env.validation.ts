@@ -14,7 +14,17 @@ export const envValidationSchema = Joi.object({
 
   // Default backend for new tasks (CLI or API)
   DEFAULT_BACKEND: Joi.string()
-    .valid('codex', 'claude-cli', 'gemini-cli', 'openai-api', 'anthropic-api', 'gemini-api')
+    .valid(
+      'codex',
+      'claude-cli',
+      'gemini-cli',
+      'openai-api',
+      'anthropic-api',
+      'gemini-api',
+      'openrouter-api',
+      'venice-api',
+      'hosted-api',
+    )
     .default('codex'),
 
   // API keys (optional - leave empty to disable that provider)
@@ -29,6 +39,26 @@ export const envValidationSchema = Joi.object({
   GEMINI_API_KEY: Joi.string().allow('').default(''),
   GEMINI_API_DEFAULT_MODEL: Joi.string().default('gemini-3-flash-preview'),
   GEMINI_API_BASE_URL: Joi.string().uri().allow(''),
+
+  // OpenRouter (OpenAI-compatible router). Env names match the Python
+  // llm-backends package: OPENROUTER_API_KEY / OPENROUTER_MODEL.
+  OPENROUTER_API_KEY: Joi.string().allow('').default(''),
+  OPENROUTER_MODEL: Joi.string().default('deepseek/deepseek-chat'),
+  OPENROUTER_BASE_URL: Joi.string().uri().allow(''),
+
+  // Venice (OpenAI-compatible host): VENICE_API_KEY / VENICE_MODEL.
+  VENICE_API_KEY: Joi.string().allow('').default(''),
+  VENICE_MODEL: Joi.string().default('venice-uncensored'),
+  VENICE_BASE_URL: Joi.string().uri().allow(''),
+
+  // Self-hosted / local (OpenAI-compatible). Base URL comes from
+  // HOSTED_LLM_URL + HOSTED_LLM_PORT, or a full HOSTED_LLM_BASE_URL. Key is
+  // optional (local servers often need none).
+  HOSTED_LLM_URL: Joi.string().allow(''),
+  HOSTED_LLM_PORT: Joi.string().allow(''),
+  HOSTED_LLM_BASE_URL: Joi.string().uri().allow(''),
+  HOSTED_LLM_API_KEY: Joi.string().allow('').default(''),
+  HOSTED_LLM_MODEL: Joi.string().allow('').default(''),
 
   API_TIMEOUT_MS: Joi.number().integer().positive().default(120000),
 
