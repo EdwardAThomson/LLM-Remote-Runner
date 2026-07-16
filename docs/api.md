@@ -73,7 +73,7 @@ Content-Type: application/json
 ```json
 {
   "prompt": "Required. The user prompt for the LLM.",
-  "backend": "codex | claude-cli | gemini-cli | openai-api | anthropic-api | gemini-api",
+  "backend": "codex | claude-cli | gemini-cli | openai-api | anthropic-api | gemini-api | openrouter-api | venice-api | hosted-api",
   "model": "optional, e.g. gemini-3-pro-preview",
   "cwd": "optional, must be inside the configured workspace allowlist (CLI backends only)",
   "systemPrompt": "optional, API backends only",

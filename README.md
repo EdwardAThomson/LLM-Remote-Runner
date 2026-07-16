@@ -25,8 +25,11 @@ LLM Remote Runner is a full-stack application that provides a secure, web-based 
 - OpenAI API (GPT-4, etc.)
 - Anthropic API (Claude)
 - Google Gemini API
+- OpenRouter API (OpenAI-compatible router)
+- Venice API (OpenAI-compatible host)
+- Self-hosted / local OpenAI-compatible servers (Ollama, llama.cpp, vLLM)
 
-**Note:** At least one CLI or API backend must be configured. CLI backends require the respective CLI tool to be installed and authenticated.
+**Note:** At least one CLI or API backend must be configured. CLI backends require the respective CLI tool to be installed and authenticated. The web UI's backend dropdown currently lists OpenAI, Anthropic, and Gemini; OpenRouter, Venice, and self-hosted backends are selectable via the gateway API or by setting `DEFAULT_BACKEND`.
 
 
 ⚠️ **Warning** - This code has not been audited for security. Use at your own risk.
@@ -98,7 +101,7 @@ The adapter runs `gemini --skip-trust -p "<prompt>" -m <model>`. The model is ta
 
 `--skip-trust` is required for Gemini CLI 0.42+ — newer versions block headless runs unless the workspace is interactively "trusted" or this flag is passed. The gateway's workspace allowlist (see [docs/SECURITY.md](docs/SECURITY.md), F-1) already constrains where CLIs run, so opting out of the per-folder trust prompt is safe.
 
-### API backends (OpenAI / Anthropic / Gemini)
+### API backends (OpenAI / Anthropic / Gemini / OpenRouter / Venice / self-hosted)
 
 No CLI required — just set the relevant key in `gateway/.env`:
 
@@ -108,7 +111,13 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 # and/or
 GEMINI_API_KEY=...
+# and/or
+OPENROUTER_API_KEY=...
+# and/or
+VENICE_API_KEY=...
 ```
+
+OpenRouter, Venice, and self-hosted backends are OpenAI-compatible; their env var names match the Python `llm-backends` package so one `.env` can serve both stacks. The self-hosted backend is keyed on a base URL rather than a key (set `HOSTED_LLM_URL` + `HOSTED_LLM_PORT`, or a full `HOSTED_LLM_BASE_URL`) so keyless local servers work.
 
 Model defaults and optional `*_BASE_URL` overrides are listed under [Environment Variables](#environment-variables).
 
@@ -255,7 +264,7 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `RATE_LIMIT_POINTS` | Max requests per duration | `60` | No |
 | `RATE_LIMIT_DURATION` | Rate limit window (seconds) | `60` | No |
 | `TASK_HEARTBEAT_MS` | SSE heartbeat interval | `15000` | No |
-| `DEFAULT_BACKEND` | Backend used when a task does not specify one (`codex`, `claude-cli`, `gemini-cli`, `openai-api`, `anthropic-api`, `gemini-api`) | `codex` | No |
+| `DEFAULT_BACKEND` | Backend used when a task does not specify one (`codex`, `claude-cli`, `gemini-cli`, `openai-api`, `anthropic-api`, `gemini-api`, `openrouter-api`, `venice-api`, `hosted-api`) | `codex` | No |
 | `LOG_LEVEL` | NestJS log level (`fatal` / `error` / `warn` / `log` / `debug` / `verbose`) | `log` | No |
 | `API_TIMEOUT_MS` | Timeout for API-backend HTTP requests | `120000` | No |
 
@@ -281,8 +290,19 @@ curl -N http://localhost:3000/api/tasks/TASK_ID/stream?token=YOUR_TOKEN
 | `GEMINI_API_KEY` | Google Gemini API key | - | No* |
 | `GEMINI_API_DEFAULT_MODEL` | Default Gemini API model | `gemini-3-flash-preview` | No |
 | `GEMINI_API_BASE_URL` | Override Gemini API base URL | - | No |
+| `OPENROUTER_API_KEY` | OpenRouter API key | - | No* |
+| `OPENROUTER_MODEL` | Default OpenRouter model | `deepseek/deepseek-chat` | No |
+| `OPENROUTER_BASE_URL` | Override OpenRouter base URL | `https://openrouter.ai/api/v1` | No |
+| `VENICE_API_KEY` | Venice API key | - | No* |
+| `VENICE_MODEL` | Default Venice model | `venice-uncensored` | No |
+| `VENICE_BASE_URL` | Override Venice base URL | `https://api.venice.ai/api/v1` | No |
+| `HOSTED_LLM_URL` | Host of a self-hosted OpenAI-compatible server (assembled with `HOSTED_LLM_PORT` into `http://{url}:{port}/v1`) | - | No* |
+| `HOSTED_LLM_PORT` | Port of the self-hosted server | - | No* |
+| `HOSTED_LLM_BASE_URL` | Full base URL for the self-hosted server (overrides `HOSTED_LLM_URL`/`HOSTED_LLM_PORT`) | - | No* |
+| `HOSTED_LLM_API_KEY` | Optional key for the self-hosted server (many local servers need none) | - | No |
+| `HOSTED_LLM_MODEL` | Default model for the self-hosted server | - | No |
 
-*At least one backend (CLI or API) must be configured.
+*At least one backend (CLI or API) must be configured. The self-hosted backend is enabled by a base URL (`HOSTED_LLM_URL` + `HOSTED_LLM_PORT`, or `HOSTED_LLM_BASE_URL`), not a key.
 
 #### Web (`web/.env.local`)
 
@@ -432,7 +452,7 @@ This issue commonly recurs with pnpm 11+, `npm install -g --omit=optional`, or a
 
 **Gemini CLI** — `ModelNotFoundError` / `404`: set `GEMINI_DEFAULT_MODEL` to a model your account has access to (try `gemini-3-flash-preview` or `gemini-2.5-flash` if `gemini-3.1-pro-preview` returns 404), or pass `model` on the task. Confirmed working strings on CLI 0.42: `gemini-3.1-pro-preview`, `gemini-3-pro-preview`, `gemini-3-flash-preview`, `gemini-2.5-pro`, `gemini-2.5-flash`. Auth issues: the CLI uses `~/.gemini/` for OAuth state; if you're running the gateway as a different user, that directory must be readable by them. If you see "not running in a trusted directory" you're on an older adapter — make sure `--skip-trust` is being passed (it should be automatic since this commit).
 
-**OpenAI / Anthropic / Gemini API** — `401` or `invalid api key` in the task output means the relevant `*_API_KEY` is missing or wrong. If you're behind a corporate proxy or hitting an Azure-compatible endpoint, set the matching `*_BASE_URL`.
+**OpenAI / Anthropic / Gemini / OpenRouter / Venice API** — `401` or `invalid api key` in the task output means the relevant `*_API_KEY` is missing or wrong. If you're behind a corporate proxy or hitting an Azure-compatible endpoint, set the matching `*_BASE_URL`. For the self-hosted backend, a connection error usually means `HOSTED_LLM_URL`/`HOSTED_LLM_PORT` (or `HOSTED_LLM_BASE_URL`) is unset or unreachable — the adapter is only registered once a base URL resolves.
 
 ## License
 
