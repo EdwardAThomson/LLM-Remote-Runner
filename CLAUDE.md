@@ -38,7 +38,7 @@ NestJS modules wired in `gateway/src/app.module.ts`. Global `JwtAuthGuard` + `Pr
 Two parallel hierarchies, each with its own factory:
 
 - **CLI adapters** (`AdapterFactory`): `codex`, `claude-cli`, `gemini-cli`. Each implements `CliAdapter.buildCommand()` → `{ command, args, env }`. The service spawns the subprocess and streams stdout/stderr line-by-line over SSE.
-- **API adapters** (`ApiAdapterFactory`): `openai-api`, `anthropic-api`, `gemini-api`. Each implements `stream()` as an async iterator of `{ content, done, usage }` chunks. The service consumes the iterator and emits each chunk as a log line.
+- **API adapters** (`ApiAdapterFactory`): `openai-api`, `anthropic-api`, `gemini-api`, plus three OpenAI-compatible backends `openrouter-api`, `venice-api`, `hosted-api` (self-hosted / local). Each implements `stream()` as an async iterator of `{ content, done, usage }` chunks. The service consumes the iterator and emits each chunk as a log line. The OpenAI-compatible chat-completions logic is shared via `OpenAiCompatibleApiAdapter`, which `openai-api` and the three new adapters extend.
 
 `TasksService.create()` (`gateway/src/tasks/tasks.service.ts`) branches on `isApiBackend(backend)` — that split is the single place CLI vs API divergence lives. Adapter implementations are stateless and reused across tasks.
 
